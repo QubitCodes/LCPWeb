@@ -1,0 +1,77 @@
+# name: Auto Deploy Next.js
+
+# on:
+#   push:
+#     branches:
+#       - main # Deploy when pushing to main branch
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout source code
+#         uses: actions/checkout@v3
+
+#       - name: Connect to Server and Deploy
+#         uses: appleboy/ssh-action@v0.1.10
+#         with:
+#           host: ${{ secrets.SERVER_HOST }}
+#           username: ${{ secrets.SERVER_USER }}
+#           key: ${{ secrets.SERVER_SSH_KEY }}
+#           script: |
+#             cd /home/ubuntu/Projects/CyberFort-WebAdmin || { echo "❌ Folder not found"; exit 1; }
+
+#             echo "📥 Pulling latest code..."
+#             git pull origin main || { echo "❌ Git pull failed"; exit 1; }
+
+#             echo "📦 Installing dependencies..."
+#             npm install --legacy-peer-deps || { echo "❌ NPM install failed"; exit 1; }
+
+#             echo "🔨 Building Next.js..."
+#             npm run build || { echo "❌ Build failed"; exit 1; }
+
+#             echo "🔄 Restarting PM2..."
+#             pm2 restart next-app || { echo "❌ PM2 restart failed"; exit 1; }
+
+#             echo "✅ Deployment complete!"
+# -----------------------------------------------------------
+
+- name: Connect to Server and Deploy
+  uses: appleboy/ssh-action@v0.1.10
+  with:
+    host: ${{ secrets.SERVER_HOST }}
+    username: ${{ secrets.SERVER_USER }}
+    key: ${{ secrets.SERVER_SSH_KEY }}
+    script: |
+      set -e
+
+      REPO_DIR="/home/ubuntu/Projects/CyberFort-WebAdmin"
+      REPO_URL="git@github.com:rohithmp2000/CyberFort-WebAdmin.git"
+      BRANCH="main"
+
+      echo "➡️ Ensure Projects folder exists"
+      mkdir -p /home/ubuntu/Projects
+      # If repo folder exists, pull latest; otherwise clone
+      if [ -d "$REPO_DIR/.git" ]; then
+        echo "📥 Pulling latest code from $BRANCH..."
+        cd "$REPO_DIR"
+        git fetch origin $BRANCH
+        git reset --hard origin/$BRANCH
+      else
+        echo "📂 Repo folder not found — cloning..."
+        git clone --depth=1 --branch $BRANCH "$REPO_URL" "$REPO_DIR"
+        cd "$REPO_DIR"
+      fi
+
+      echo "📦 Installing dependencies..."
+      # Use nvm if needed; or ensure system node version is OK on the server
+      npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      echo "🔨 Building Next.js..."
+      npm run build
+
+      echo "🔄 Restarting PM2..."
+      pm2 restart next-app || pm2 start npm --name next-app -- start
+
+      echo "✅ Deployment complete!"
