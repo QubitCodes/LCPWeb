@@ -3,8 +3,29 @@ import { CompanyController } from '@/controllers/CompanyController';
 import { sendResponse, RESPONSE_CODES } from '@/utils/responseHandler';
 import { verifyToken } from '@/lib/auth';
 import { z } from 'zod';
+import { Api } from '@/lib/QubitRequest';
 
 export const dynamic = 'force-dynamic';
+
+// GET - API using QubitRequest
+export const GET = Api(async (req) => {
+  try {
+    const result = await CompanyController.list(req);
+
+    // Pass the standard response from controller directly
+    return sendResponse(200, result);
+
+  } catch (error: any) {
+    console.error('API Error:', error);
+    // Return detailed error message for debugging "Internal Error"
+    return sendResponse(500, {
+      status: false,
+      message: `Internal Error: ${error.message || String(error)}`,
+      code: RESPONSE_CODES.GENERAL_SERVER_ERROR,
+      errors: [{ detail: error.stack }]
+    });
+  }
+});
 
 // Schema for Validation
 const createCompanySchema = z.object({
@@ -16,29 +37,6 @@ const createCompanySchema = z.object({
   website: z.string().optional(),
   tax_id: z.string().optional(),
 });
-
-export async function GET(req: NextRequest) {
-  try {
-    // In a real app, verify token here
-    // const authHeader = req.headers.get('authorization');
-    // ... verify logic ...
-
-    const result = await CompanyController.list({});
-    return sendResponse(200, {
-      status: true,
-      message: 'Companies retrieved',
-      code: RESPONSE_CODES.OK,
-      data: result.data
-    });
-  } catch (error) {
-    console.error('API Error:', error);
-    return sendResponse(500, {
-      status: false,
-      message: 'Internal Error',
-      code: RESPONSE_CODES.GENERAL_SERVER_ERROR
-    });
-  }
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,18 +79,68 @@ export async function POST(req: NextRequest) {
     // 4. Controller Action
     const result = await CompanyController.create(validation.data, user.id, '0.0.0.0');
 
-    return sendResponse(201, {
-      status: true,
-      message: result.message,
-      code: RESPONSE_CODES.CREATED,
-      data: result.data
-    });
+    // Pass the standard response from controller directly
+    return sendResponse(201, result);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error:', error);
     return sendResponse(500, {
       status: false,
-      message: 'Internal Server Error',
+      message: `Internal Server Error: ${error.message}`,
+      code: RESPONSE_CODES.GENERAL_SERVER_ERROR
+    });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    // 1. Auth Check
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.split(' ')[1];
+    const user = await verifyToken(token || '');
+
+    if (!user) {
+      return sendResponse(401, {
+        status: false,
+        message: 'Unauthorized',
+        code: RESPONSE_CODES.AUTHENTICATION_ERROR
+      });
+    }
+
+    // 2. Parse (Support FormData for updates too, e.g. logo, or JSON)
+    let rawData: any = {};
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      rawData = Object.fromEntries(formData);
+    } else {
+      rawData = await req.json();
+    }
+
+    if (!rawData.id) {
+      return sendResponse(400, {
+        status: false,
+        message: 'Company ID is required',
+        code: RESPONSE_CODES.MISSING_REQUIRED_FIELD
+      });
+    }
+
+    // 3. Update
+    const result = await CompanyController.update(rawData.id, rawData, user.id);
+
+    if (!result.status) { // Updated to check .status since CompanyController returns ServiceResponse
+      return sendResponse(400, result); // Return result directly as it is ServiceResponse
+    }
+
+    // Return success
+    return sendResponse(200, result);
+
+  } catch (error: any) {
+    console.error('API Error:', error);
+    return sendResponse(500, {
+      status: false,
+      message: `Internal Server Error: ${error.message}`,
       code: RESPONSE_CODES.GENERAL_SERVER_ERROR
     });
   }

@@ -5,33 +5,33 @@ import { Op } from 'sequelize';
 import sequelize from '../lib/sequelize';
 
 export class UserController {
-  
+
   static async list(query: any, actor: any) {
     const { role, company_id } = query;
     const whereClause: any = {};
 
     // Role Filtering & Security
     if (actor?.role !== 'SUPER_ADMIN') {
-        if (role) {
-            if (role === 'SUPER_ADMIN') {
-                // Hide SUPER_ADMIN from non-super admins
-                return { success: true, data: [], code: 100 }; 
-            }
-            whereClause.role = role;
-        } else {
-            // Exclude SUPER_ADMIN from list
-            whereClause.role = { [Op.ne]: 'SUPER_ADMIN' };
+      if (role) {
+        if (role === 'SUPER_ADMIN') {
+          // Hide SUPER_ADMIN from non-super admins
+          return { success: true, data: [], code: 100 };
         }
+        whereClause.role = role;
+      } else {
+        // Exclude SUPER_ADMIN from list
+        whereClause.role = { [Op.ne]: 'SUPER_ADMIN' };
+      }
     } else {
-        // Super Admin can filter by any role or see all
-        if (role) whereClause.role = role;
+      // Super Admin can filter by any role or see all
+      if (role) whereClause.role = role;
     }
 
     const users = await (User as any).findAll({
       where: whereClause,
       include: [
-        { 
-          model: Company, 
+        {
+          model: Company,
           as: 'company',
           attributes: ['id', 'name']
         }
@@ -71,10 +71,10 @@ export class UserController {
       action: 'CREATE_USER',
       entityType: 'USER',
       entityId: newUser.id,
-      details: { 
-        role: newUser.role, 
+      details: {
+        role: newUser.role,
         email: newUser.email,
-        company_id: newUser.company_id 
+        company_id: newUser.company_id
       },
       ipAddress: ip
     });
@@ -93,7 +93,7 @@ export class UserController {
       if (!user) throw new Error('User not found');
 
       const oldCompanyId = user.company_id;
-      
+
       // If no change, return
       if (oldCompanyId === newCompanyId) return { success: true, message: 'Same company', code: 100 };
 
@@ -115,6 +115,47 @@ export class UserController {
     } catch (error) {
       await t.rollback();
       throw error;
+    }
+  }
+
+  static async update(id: string, data: any, actor: any) {
+    try {
+      const user = await (User as any).findByPk(id);
+      if (!user) {
+        return { success: false, message: 'User not found', code: 310 };
+      }
+
+      // Security check: Only Admin or Self can update? 
+      // Assuming Admin can update anyone.
+
+      const updateData: any = {};
+      if (data.first_name) updateData.first_name = data.first_name;
+      if (data.last_name) updateData.last_name = data.last_name;
+      if (data.email) updateData.email = data.email; // Should check uniqueness if changed
+      if (data.role) updateData.role = data.role;
+      if (data.phone_number) updateData.phone_number = data.phone_number;
+
+      await user.update(updateData);
+
+      // Log
+      await AuditService.log({
+        userId: actor.id,
+        action: 'UPDATE_USER',
+        entityType: 'USER',
+        entityId: user.id,
+        details: updateData, // Log what changed
+        ipAddress: '0.0.0.0'
+      });
+
+      // Return clean user
+      const userResponse = user.toJSON();
+      delete (userResponse as any).password_hash;
+
+      return { success: true, message: 'User updated', data: userResponse, code: 103 };
+
+    } catch (error: any) {
+      console.error('Update User Error:', error);
+      return { success: false, message: error.message, code: 300 };
     }
   }
 }

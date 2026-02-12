@@ -3,7 +3,7 @@ import sequelize from '../lib/sequelize';
 import { AuditService } from '../services/AuditService';
 
 export class JobController {
-  
+
   static async list() {
     const jobs = await Job.findAll({
       include: [
@@ -56,11 +56,11 @@ export class JobController {
       // 4. Associate Skills
       if (data.skills && Array.isArray(data.skills)) {
         for (const s of data.skills) {
-           await JobSkill.create({
-             job_id: job.id,
-             skill_id: s.skill_id,
-             difficulty_level: s.level
-           }, { transaction: t });
+          await JobSkill.create({
+            job_id: job.id,
+            skill_id: s.skill_id,
+            difficulty_level: s.level
+          }, { transaction: t });
         }
       }
 
@@ -82,6 +82,33 @@ export class JobController {
       await t.rollback();
       console.error('Job Creation Error', error);
       throw error;
+    }
+  }
+
+  static async update(id: string, data: any, actorId: string) {
+    try {
+      const job = await Job.findByPk(id);
+      if (!job) return { success: false, message: 'Job not found', code: 310 };
+
+      await job.update({
+        name: data.name,
+        category_id: data.category_id
+      });
+
+      // Log
+      await AuditService.log({
+        userId: actorId,
+        action: 'UPDATE_JOB',
+        entityType: 'JOB',
+        entityId: job.id,
+        details: { name: data.name, category: data.category_id },
+        ipAddress: '0.0.0.0'
+      });
+
+      return { success: true, message: 'Job updated', data: job, code: 103 };
+    } catch (error: any) {
+      console.error('Update Job Error:', error);
+      return { success: false, message: error.message, code: 300 };
     }
   }
 }

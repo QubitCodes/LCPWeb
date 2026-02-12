@@ -111,3 +111,59 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
+// Update User
+export async function PUT(req: NextRequest) {
+  try {
+    // 1. Auth Check
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.split(' ')[1];
+    const user = await verifyToken(token || '');
+
+    if (!user) {
+      return sendResponse(401, {
+        status: false,
+        message: 'Unauthorized',
+        code: RESPONSE_CODES.AUTHENTICATION_ERROR
+      });
+    }
+
+    // 2. Parse Body
+    const body = await req.json();
+
+    // 3. Simple Validation
+    if (!body.id) {
+      return sendResponse(400, {
+        status: false,
+        message: 'User ID is required',
+        code: RESPONSE_CODES.MISSING_REQUIRED_FIELD
+      });
+    }
+
+    // 4. Update
+    const result = await UserController.update(body.id, body, user);
+
+    if (!result.success) {
+      return sendResponse(400, {
+        status: false,
+        message: result.message,
+        code: result.code
+      });
+    }
+
+    return sendResponse(200, {
+      status: true,
+      message: 'User updated successfully',
+      code: RESPONSE_CODES.UPDATED,
+      data: result.data
+    });
+
+  } catch (error: any) {
+    console.error('API Error:', error);
+    return sendResponse(500, {
+      status: false,
+      message: `Internal Server Error: ${error.message}`,
+      code: RESPONSE_CODES.GENERAL_SERVER_ERROR
+    });
+  }
+}

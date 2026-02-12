@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 
-interface ResponseData {
+export interface ServiceResponse<T = any> {
   status: boolean;
   message: string;
+  data?: T;
   code: number;
-  data?: any;
   misc?: any;
   errors?: any[];
 }
@@ -15,7 +15,7 @@ export const RESPONSE_CODES = {
   CREATED: 101,
   ACCEPTED: 102,
   UPDATED: 103,
-  
+
   // 2xx: Client Errors
   GENERAL_CLIENT_ERROR: 200,
   VALIDATION_ERROR: 201,
@@ -50,9 +50,40 @@ export const RESPONSE_CODES = {
   SYSTEM_MAINTENANCE: 901
 };
 
+export class Response {
+  static success<T = any>(
+    data: T | null = null,
+    message: string = 'Success',
+    code: number = RESPONSE_CODES.OK,
+    misc?: any
+  ): ServiceResponse<T> {
+    return {
+      status: true,
+      message,
+      data: data as T,
+      code,
+      misc
+    };
+  }
+
+  static error(
+    message: string = 'Error',
+    code: number = RESPONSE_CODES.GENERAL_SERVER_ERROR,
+    errors?: any[]
+  ): ServiceResponse {
+    return {
+      status: false,
+      message,
+      code,
+      data: undefined,
+      errors
+    };
+  }
+}
+
 export const sendResponse = (
   statusCode: number,
-  data: ResponseData
+  data: ServiceResponse
 ) => {
   return NextResponse.json(data, { status: statusCode });
 };
