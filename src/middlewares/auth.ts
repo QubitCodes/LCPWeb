@@ -5,8 +5,8 @@ import { authData } from './QubitRequest';
 
 // Define paths that are public
 const PUBLIC_PATHS = [
-    '/login',
-    '/register',
+    '/admin/login',
+    '/company/register',
     '/api/v1/auth/login',
     '/api/v1/auth/register-company'
 ];
@@ -25,7 +25,7 @@ export async function verifyAuth(request: NextRequest) {
 
     if (!token) {
         // Redirect to login if accessing protected route
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.redirect(new URL('/admin/login', request.url));
     }
 
     // 3. Verify Token
@@ -42,6 +42,6 @@ export async function verifyAuth(request: NextRequest) {
     } catch (error) {
         console.error('Middleware Auth Error:', error);
         // Token invalid or expired
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.redirect(new URL('/admin/login', request.url));
     }
 }

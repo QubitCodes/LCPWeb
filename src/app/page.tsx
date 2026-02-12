@@ -19,10 +19,10 @@ export default function Home() {
       } else if (user.role === 'WORKER') {
         router.push('/admin/worker');
       } else {
-        router.push('/login');
+        router.push('/admin/login');
       }
     } else {
-      router.push('/login');
+      router.push('/admin/login');
     }
   }, []);
 
