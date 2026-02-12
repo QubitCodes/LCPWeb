@@ -5,7 +5,6 @@ import {
     LayoutDashboard,
     Users,
     Briefcase,
-    GraduationCap,
     DollarSign,
     Award,
     History,
@@ -13,7 +12,8 @@ import {
     UserCheck,
     CreditCard,
     Bell,
-    X
+    X,
+    BookOpen
 } from 'lucide-react';
 import NavItem from '@/components/tailwind/sidebar/NavItem';
 import ProfileDropdown from '@/components/tailwind/sidebar/ProfileDropdown';
@@ -77,10 +77,15 @@ export default function SidebarContent({ role, userName, onLogout, onClose }: Si
                     {/* Admin Links */}
                     {isAdmin && (
                         <>
+                            <NavItem href="/tailwind/admin/users" icon={Users} label="Admins" />
+                            {/*
+                             * Jobs / Courses merged into a single sidebar entry.
+                             * Rationale: Currently 1 Job = 1 Course, so they share the same page.
+                             * The standalone Courses link has been removed from sidebar.
+                             * The /courses route is still accessible via URL and from the Jobs page.
+                             */}
                             <NavItem href="/tailwind/admin/companies" icon={Briefcase} label="Companies" />
-                            <NavItem href="/tailwind/admin/users" icon={Users} label="Users" />
-                            <NavItem href="/tailwind/admin/jobs" icon={Users} label="Jobs" isBeta />
-                            <NavItem href="/tailwind/admin/courses" icon={GraduationCap} label="Courses" isBeta />
+                            <NavItem href="/tailwind/admin/jobs" icon={BookOpen} label="Jobs / Courses" isBeta />
 
                             {role === 'SUPER_ADMIN' && (
                                 <>
@@ -89,9 +94,8 @@ export default function SidebarContent({ role, userName, onLogout, onClose }: Si
                                 </>
                             )}
 
-                            <NavItem href="/tailwind/admin/audit-logs" icon={History} label="Audit Logs" />
-
                             <SectionLabel label="Settings" className="mt-6" />
+
                             <NavItem href="/tailwind/admin/settings/reference" icon={Settings} label="Platform Settings" />
                         </>
                     )}
@@ -107,6 +111,8 @@ export default function SidebarContent({ role, userName, onLogout, onClose }: Si
 
                     {/* Shared Links */}
                     {role === 'SUPER_ADMIN' && <NavItem href="/tailwind/admin/enrollments" icon={CreditCard} label="Enrollments" />}
+
+                    {isAdmin && <NavItem href="/tailwind/admin/audit-logs" icon={History} label="Audit Logs" />}
                 </nav>
             </div>
 

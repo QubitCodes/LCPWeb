@@ -223,18 +223,8 @@ export default function AuditLogsPage() {
                                 <span className="font-mono text-slate-900 dark:text-white">{viewLog.ip_address || '—'}</span>
                             </div>
 
-                            {/* JSON Details */}
-                            {viewLog.details && (
-                                <div className="mt-4">
-                                    <div className="flex items-center gap-2 text-slate-500 mb-2">
-                                        <Code className="w-4 h-4" />
-                                        <span className="text-xs font-medium uppercase tracking-wider">Details (JSON)</span>
-                                    </div>
-                                    <pre className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-700 dark:text-slate-300 overflow-x-auto max-h-48">
-                                        {JSON.stringify(viewLog.details, null, 2)}
-                                    </pre>
-                                </div>
-                            )}
+                            {/* Details Table — always shown */}
+                            <DetailsTable details={viewLog.details} />
                         </div>
                         <div className="mt-6 flex justify-end">
                             <button onClick={() => setViewLog(null)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
@@ -245,5 +235,88 @@ export default function AuditLogsPage() {
                 </div>
             )}
         </>
+    );
+}
+
+/**
+ * Flatten a nested object into dot-notation key/value pairs.
+ * e.g. { user: { name: 'John' } } → [['user.name', 'John']]
+ */
+function flattenObject(obj: Record<string, any>, prefix = ''): [string, string][] {
+    const entries: [string, string][] = [];
+    for (const [key, value] of Object.entries(obj)) {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            entries.push(...flattenObject(value, fullKey));
+        } else {
+            entries.push([fullKey, value === null ? 'null' : String(value)]);
+        }
+    }
+    return entries;
+}
+
+/**
+ * DetailsTable — renders audit log details as a searchable key/value table.
+ * Flattens nested objects into dot-notation keys for readability.
+ */
+function DetailsTable({ details }: { details?: any }) {
+    const [filter, setFilter] = useState('');
+
+    if (!details || typeof details !== 'object' || Object.keys(details).length === 0) {
+        return (
+            <div className="mt-4">
+                <div className="flex items-center gap-2 text-slate-500 mb-2">
+                    <Code className="w-4 h-4" />
+                    <span className="text-xs font-medium uppercase tracking-wider">Details</span>
+                </div>
+                <p className="text-sm text-slate-400 dark:text-slate-500 italic">No details recorded for this action.</p>
+            </div>
+        );
+    }
+
+    const allRows = flattenObject(details);
+    const lowerFilter = filter.toLowerCase();
+    const filteredRows = lowerFilter
+        ? allRows.filter(([k, v]) => k.toLowerCase().includes(lowerFilter) || v.toLowerCase().includes(lowerFilter))
+        : allRows;
+
+    return (
+        <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-slate-500">
+                    <Code className="w-4 h-4" />
+                    <span className="text-xs font-medium uppercase tracking-wider">Details</span>
+                </div>
+                <input
+                    type="text"
+                    placeholder="Filter…"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="px-2 py-1 text-xs w-36 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden max-h-52 overflow-y-auto">
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="border-b border-slate-200 dark:border-slate-700">
+                            <th className="text-left px-3 py-2 text-slate-500 dark:text-slate-400 font-medium">Data</th>
+                            <th className="text-left px-3 py-2 text-slate-500 dark:text-slate-400 font-medium">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredRows.length > 0 ? filteredRows.map(([key, value]) => (
+                            <tr key={key} className="border-b border-slate-100 dark:border-slate-700/50 last:border-0">
+                                <td className="px-3 py-2 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">{key}</td>
+                                <td className="px-3 py-2 text-slate-900 dark:text-white break-all">{value}</td>
+                            </tr>
+                        )) : (
+                            <tr>
+                                <td colSpan={2} className="px-3 py-3 text-center text-slate-400 italic">No matching entries</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }

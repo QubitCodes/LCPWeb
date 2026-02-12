@@ -15,11 +15,14 @@ const questionSchema = z.object({
 });
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  // Check auth to decide if we show answers (Worker vs Admin)
-  // For now, simple implementation
-  const { id } = await params;
-  const result = await QuizController.getQuestions(id, true);
-  return sendResponse(200, { status: true, message: 'Questions', code: 100, data: result.data });
+  try {
+    const { id } = await params;
+    const result = await QuizController.getQuestions(id, true);
+    return sendResponse(200, { status: true, message: 'Questions', code: 100, data: result.data });
+  } catch (error: any) {
+    console.error('GET /content/[id]/questions error:', error);
+    return sendResponse(500, { status: false, message: error.message || 'Failed to fetch questions', code: 300 });
+  }
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

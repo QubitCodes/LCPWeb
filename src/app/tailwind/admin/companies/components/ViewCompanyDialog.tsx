@@ -1,6 +1,7 @@
 'use client';
 
-import { X, Building2, Globe, Phone, Mail, FileText, MapPin, Calendar } from 'lucide-react';
+import { X, Building2, Globe, Phone, Mail, FileText, MapPin, Calendar, Users, UserCheck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface Company {
     id: string;
@@ -21,6 +22,7 @@ interface ViewCompanyDialogProps {
 }
 
 export default function ViewCompanyDialog({ isOpen, onClose, company }: ViewCompanyDialogProps) {
+    const router = useRouter();
     if (!isOpen || !company) return null;
 
     return (
@@ -133,7 +135,23 @@ export default function ViewCompanyDialog({ isOpen, onClose, company }: ViewComp
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex justify-end">
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => { onClose(); router.push(`/tailwind/admin/companies/${company.id}/people?tab=supervisors`); }}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                        >
+                            <UserCheck className="w-4 h-4" />
+                            View Supervisors
+                        </button>
+                        <button
+                            onClick={() => { onClose(); router.push(`/tailwind/admin/companies/${company.id}/people?tab=workers`); }}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors"
+                        >
+                            <Users className="w-4 h-4" />
+                            View Workers
+                        </button>
+                    </div>
                     <button
                         onClick={onClose}
                         className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/50 rounded-lg transition-colors border border-transparent"

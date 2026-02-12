@@ -26,8 +26,8 @@ interface NavItemProps {
 export default function NavItem({ href, icon: Icon, label, isBeta = false, activePaths }: NavItemProps) {
     const pathname = usePathname();
     const active = activePaths
-        ? activePaths.some(path => pathname.endsWith(path))
-        : pathname === href;
+        ? activePaths.some(path => pathname === path || pathname.startsWith(path + '/'))
+        : pathname === href || pathname.startsWith(href + '/');
 
     return (
         <Link
