@@ -1,8 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { 
-  Box, 
-  Button, 
+import {
+  Box,
+  Button,
   Chip,
   Dialog,
   DialogTitle,
@@ -25,18 +25,18 @@ interface Company {
   created_at: string;
 }
 
-import CustomTable from '../../../components/CustomTable';
+import CustomTable from '@/components/mui/CustomTable';
 
 export default function CompaniesPage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Bulk Import State
   const [openImport, setOpenImport] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{message: string, success: boolean} | null>(null);
+  const [importResult, setImportResult] = useState<{ message: string, success: boolean } | null>(null);
 
   useEffect(() => {
     fetchCompanies();
@@ -92,8 +92,8 @@ export default function CompaniesPage() {
         title="Companies"
         actionButton={
           <Stack direction="row" spacing={2}>
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               startIcon={<UploadFileIcon />}
               onClick={() => {
                 setOpenImport(true);
@@ -103,10 +103,10 @@ export default function CompaniesPage() {
             >
               Bulk Import
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => router.push('/admin/companies/add')}
+              onClick={() => router.push('/mui/admin/companies/add')}
             >
               Add Company
             </Button>
@@ -117,22 +117,22 @@ export default function CompaniesPage() {
         columns={[
           { id: 'name', label: 'Company Name' },
           { id: 'company_id', label: 'Company ID', format: (value: string) => value || 'N/A' },
-          { 
-             id: 'status', 
-             label: 'Status', 
-             format: (value: string) => (
-                <Chip 
-                    label={value} 
-                    color={value === 'ACTIVE' ? 'success' : 'default'} 
-                    size="small" 
-                    sx={{ fontWeight: 500 }}
-                />
-             )
+          {
+            id: 'status',
+            label: 'Status',
+            format: (value: string) => (
+              <Chip
+                label={value}
+                color={value === 'ACTIVE' ? 'success' : 'default'}
+                size="small"
+                sx={{ fontWeight: 500 }}
+              />
+            )
           },
           { id: 'created_at', label: 'Registered On', format: (value: string) => new Date(value).toLocaleDateString() }
         ]}
         actions={(row: any) => (
-           <Button size="small" variant="text" color="primary">Edit</Button>
+          <Button size="small" variant="text" color="primary">Edit</Button>
         )}
       />
 
@@ -142,15 +142,15 @@ export default function CompaniesPage() {
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Upload a CSV file containing company data. Headers should include: 
+              Upload a CSV file containing company data. Headers should include:
               <strong> name, industry_id, website, tax_id, address, contact_email, contact_phone</strong>.
             </Typography>
-            
-            <Box 
-              sx={{ 
-                p: 4, 
-                border: '2px dashed #cbd5e1', 
-                borderRadius: 2, 
+
+            <Box
+              sx={{
+                p: 4,
+                border: '2px dashed #cbd5e1',
+                borderRadius: 2,
                 textAlign: 'center',
                 bgcolor: '#f8fafc'
               }}
@@ -192,9 +192,9 @@ export default function CompaniesPage() {
           <Button onClick={() => setOpenImport(false)} disabled={importing}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleImport} 
-            variant="contained" 
+          <Button
+            onClick={handleImport}
+            variant="contained"
             disabled={!file || importing}
             startIcon={importing ? <CircularProgress size={20} color="inherit" /> : null}
           >

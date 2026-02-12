@@ -84,7 +84,7 @@ export default function AddCompanyPage() {
       const data = await res.json();
 
       if (data.status) {
-        router.push('/admin/companies');
+        router.push('/mui/admin/companies');
       } else {
         setError(data.message || 'Failed to create company');
       }

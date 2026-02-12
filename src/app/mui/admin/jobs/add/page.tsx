@@ -77,7 +77,7 @@ export default function AddJobPage() {
       });
       const data = await res.json();
       if (data.status) {
-        router.push('/admin/jobs');
+        router.push('/mui/admin/jobs');
       } else {
         setError(data.message || 'Failed');
       }

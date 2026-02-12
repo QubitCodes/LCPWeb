@@ -124,7 +124,7 @@ export default function WorkerDashboard() {
               <Button
                 size="small"
                 sx={{ mt: 1 }}
-                onClick={() => router.push('/admin/certificates')}
+                onClick={() => router.push('/mui/admin/certificates')}
               >
                 View Certificate
               </Button>

@@ -143,7 +143,7 @@ export default function RegisterPage() {
           <Button
             variant="contained"
             fullWidth
-            onClick={() => router.push('/login')}
+            onClick={() => router.push('/mui/login')}
             sx={{ py: 1.5, borderRadius: 2, fontWeight: 700 }}
           >
             Go to Login

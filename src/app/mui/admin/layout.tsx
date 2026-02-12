@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, CssBaseline } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../../components/Sidebar';
+import Sidebar from '@/components/mui/Sidebar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -19,14 +19,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setRole(user.role);
       setUserName(`${user.first_name} ${user.last_name}`);
     } else {
-        // Optional: Redirect to login if not found (handled by middleware ideally)
+      // Optional: Redirect to login if not found (handled by middleware ideally)
     }
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    router.push('/login');
+    router.push('/mui/login');
   };
 
   if (!isClient) return null; // Prevent hydration mismatch
@@ -35,13 +35,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <CssBaseline />
       <Sidebar role={role} userName={userName} onLogout={handleLogout} />
-      <Box 
-        component="main" 
-        sx={{ 
-            flexGrow: 1, 
-            p: 3, 
-            bgcolor: 'background.default',
-            width: { sm: `calc(100% - 260px)` },
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          bgcolor: 'background.default',
+          width: { sm: `calc(100% - 260px)` },
         }}
       >
         {children}

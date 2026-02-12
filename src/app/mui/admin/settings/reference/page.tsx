@@ -23,7 +23,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import CustomTable from '@/components/CustomTable';
+import CustomTable from '@/components/mui/CustomTable';
 
 const REFERENCE_TYPES = [
   { id: 'industries', label: 'Industries' },
@@ -35,7 +35,7 @@ export default function ReferenceManagementPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Dialog State
   const [openDialog, setOpenDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -83,8 +83,8 @@ export default function ReferenceManagementPage() {
     setSubmitting(true);
     try {
       const method = editingItem ? 'PATCH' : 'POST';
-      const url = editingItem 
-        ? `/api/v1/reference/${currentType}?id=${editingItem.id}` 
+      const url = editingItem
+        ? `/api/v1/reference/${currentType}?id=${editingItem.id}`
         : `/api/v1/reference/${currentType}`;
 
       const res = await fetch(url, {
@@ -111,22 +111,22 @@ export default function ReferenceManagementPage() {
   };
 
   const handleDelete = async (id: string) => {
-     if (!confirm('Are you sure you want to delete this item?')) return;
-     
-     try {
-       const res = await fetch(`/api/v1/reference/${currentType}?id=${id}`, {
-         method: 'DELETE',
-         headers: {
-           'Authorization': `Bearer ${localStorage.getItem('token')}`
-         }
-       });
-       const result = await res.json();
-       if (result.status) {
-         fetchData();
-       }
-     } catch (err) {
-       console.error('Delete error');
-     }
+    if (!confirm('Are you sure you want to delete this item?')) return;
+
+    try {
+      const res = await fetch(`/api/v1/reference/${currentType}?id=${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const result = await res.json();
+      if (result.status) {
+        fetchData();
+      }
+    } catch (err) {
+      console.error('Delete error');
+    }
   };
 
   return (

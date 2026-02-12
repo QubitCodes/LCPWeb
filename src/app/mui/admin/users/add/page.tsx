@@ -63,7 +63,7 @@ export default function AddUserPage() {
       const data = await res.json();
 
       if (data.status) {
-        router.push('/admin/users');
+        router.push('/mui/admin/users');
       } else {
         setError(data.message || 'Failed to create user');
       }

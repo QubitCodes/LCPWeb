@@ -194,19 +194,19 @@ export default function Sidebar({ role, userName, onLogout }: SidebarProps) {
             <ListItem disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton 
                 onClick={() => {
-                  if(isAdmin) navigate('/admin/dashboard');
-                  else if(isSupervisor) navigate('/admin/supervisor');
-                  else navigate('/admin/worker');
+                  if(isAdmin) navigate('/mui/admin/dashboard');
+                  else if(isSupervisor) navigate('/mui/admin/supervisor');
+                  else navigate('/mui/admin/worker');
                 }}
                 sx={{
                   mx: 2,
                   my: 0,
-                  py: (pathname.endsWith('/admin/dashboard') || pathname.endsWith('/admin/supervisor') || pathname.endsWith('/admin/worker')) ? 0.75 : 0,
+                  py: (pathname.endsWith('/mui/admin/dashboard') || pathname.endsWith('/mui/admin/supervisor') || pathname.endsWith('/mui/admin/worker')) ? 0.75 : 0,
                   borderRadius: 2,
-                  color: (pathname.endsWith('/admin/dashboard') || pathname.endsWith('/admin/supervisor') || pathname.endsWith('/admin/worker')) ? SIDEBAR_TEXT_ACTIVE : SIDEBAR_TEXT,
-                  bgcolor: (pathname.endsWith('/admin/dashboard') || pathname.endsWith('/admin/supervisor') || pathname.endsWith('/admin/worker')) ? SIDEBAR_ACTIVE_BG : 'transparent',
+                  color: (pathname.endsWith('/mui/admin/dashboard') || pathname.endsWith('/mui/admin/supervisor') || pathname.endsWith('/mui/admin/worker')) ? SIDEBAR_TEXT_ACTIVE : SIDEBAR_TEXT,
+                  bgcolor: (pathname.endsWith('/mui/admin/dashboard') || pathname.endsWith('/mui/admin/supervisor') || pathname.endsWith('/mui/admin/worker')) ? SIDEBAR_ACTIVE_BG : 'transparent',
                    '&:hover': {
-                    bgcolor: (pathname.endsWith('/admin/dashboard') || pathname.endsWith('/admin/supervisor') || pathname.endsWith('/admin/worker')) ? SIDEBAR_ACTIVE_BG : alpha(SIDEBAR_TEXT, 0.08),
+                    bgcolor: (pathname.endsWith('/mui/admin/dashboard') || pathname.endsWith('/mui/admin/supervisor') || pathname.endsWith('/mui/admin/worker')) ? SIDEBAR_ACTIVE_BG : alpha(SIDEBAR_TEXT, 0.08),
                     color: SIDEBAR_TEXT_ACTIVE
                    }
                 }}
@@ -219,22 +219,22 @@ export default function Sidebar({ role, userName, onLogout }: SidebarProps) {
           {/* Admin Links */}
           {isAdmin && (
             <>
-              {renderNavItem('Companies', <WorkIcon />, '/admin/companies')}
-              {renderNavItem('Users', <PersonIcon />, '/admin/users')}
-              {renderNavItem('Jobs', <PeopleIcon />, '/admin/jobs', true)}
-              {renderNavItem('Courses', <SchoolIcon />, '/admin/courses', true)}
-              {role === 'SUPER_ADMIN' && renderNavItem('Payments', <AttachMoneyIcon />, '/admin/payments')}
-              {role === 'SUPER_ADMIN' && renderNavItem('Approvals', <RecommendIcon />, '/admin/recommendations')}
-              {renderNavItem('Audit Logs', <HistoryIcon />, '/admin/audit-logs')}
+              {renderNavItem('Companies', <WorkIcon />, '/mui/admin/companies')}
+              {renderNavItem('Users', <PersonIcon />, '/mui/admin/users')}
+              {renderNavItem('Jobs', <PeopleIcon />, '/mui/admin/jobs', true)}
+              {renderNavItem('Courses', <SchoolIcon />, '/mui/admin/courses', true)}
+              {role === 'SUPER_ADMIN' && renderNavItem('Payments', <AttachMoneyIcon />, '/mui/admin/payments')}
+              {role === 'SUPER_ADMIN' && renderNavItem('Approvals', <RecommendIcon />, '/mui/admin/recommendations')}
+              {renderNavItem('Audit Logs', <HistoryIcon />, '/mui/admin/audit-logs')}
               
               <Typography variant="caption" sx={{ px: 3, mt: 2, mb: 1, display: 'block', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', letterSpacing: 0.5 }}>
                   SETTINGS
               </Typography>
               
-              {renderNavItem('Platform Settings', <SettingsIcon />, '/admin/settings/reference')}
+              {renderNavItem('Platform Settings', <SettingsIcon />, '/mui/admin/settings/reference')}
               {/* <Box sx={{ px: 2, mt: 1 }}>
                 <Button
-                    onClick={() => navigate('/admin/settings/reference')}
+                    onClick={() => navigate('/mui/admin/settings/reference')}
                     fullWidth
                     variant="contained"
                     startIcon={<SettingsIcon />}
@@ -262,14 +262,14 @@ export default function Sidebar({ role, userName, onLogout }: SidebarProps) {
           {/* Supervisor Links */}
           {isSupervisor && (
             <>
-              {renderNavItem('My Workers', <AssignmentIndIcon />, '/admin/supervisor/workers')}
-              {renderNavItem('Recommendations', <RecommendIcon />, '/admin/supervisor/recommendations')}
-              {renderNavItem('Enrollments', <PaymentIcon />, '/admin/enrollments')}
+              {renderNavItem('My Workers', <AssignmentIndIcon />, '/mui/admin/supervisor/workers')}
+              {renderNavItem('Recommendations', <RecommendIcon />, '/mui/admin/supervisor/recommendations')}
+              {renderNavItem('Enrollments', <PaymentIcon />, '/mui/admin/enrollments')}
             </>
           )}
 
           {/* Shared Links (Admin also sees enrollments) */}
-          {role === 'SUPER_ADMIN' && renderNavItem('Enrollments', <PaymentIcon />, '/admin/enrollments')}
+          {role === 'SUPER_ADMIN' && renderNavItem('Enrollments', <PaymentIcon />, '/mui/admin/enrollments')}
           
 
         </List>
@@ -324,7 +324,7 @@ export default function Sidebar({ role, userName, onLogout }: SidebarProps) {
           transformOrigin={{ horizontal: 'right', vertical: 'bottom' }}
           anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
         >
-          <MenuItem onClick={() => { handleClose(); navigate('/admin/profile'); }}>
+          <MenuItem onClick={() => { handleClose(); navigate('/mui/admin/profile'); }}>
             <ListItemIcon><AccountCircleIcon fontSize="small" sx={{ color: SIDEBAR_TEXT }} /></ListItemIcon>
             My Profile
           </MenuItem>

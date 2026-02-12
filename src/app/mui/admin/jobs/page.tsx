@@ -25,7 +25,7 @@ export default function JobsPage() {
         <Button 
           variant="contained" 
           startIcon={<AddIcon />}
-          onClick={() => router.push('/admin/jobs/add')}
+          onClick={() => router.push('/mui/admin/jobs/add')}
         >
           Add Job
         </Button>

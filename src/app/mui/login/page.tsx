@@ -53,9 +53,9 @@ export default function LoginPage() {
         // Slight delay to show success state
         setTimeout(() => {
              if (['ADMIN', 'SUPER_ADMIN'].includes(data.data.user.role)) {
-                router.push('/admin/dashboard');
+                router.push('/mui/admin/dashboard');
              } else {
-                router.push('/admin/dashboard'); // Fallback
+                router.push('/mui/admin/dashboard'); // Fallback
              }
         }, 500);
        
