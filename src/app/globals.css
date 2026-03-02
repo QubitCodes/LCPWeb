@@ -2,3 +2,18 @@
 
 /* Enable class-based dark mode for Tailwind CSS v4 */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Remove spinner arrows from all number inputs */
+@layer base {
+
+	input[type="number"]::-webkit-inner-spin-button,
+	input[type="number"]::-webkit-outer-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+
+	input[type="number"] {
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+}

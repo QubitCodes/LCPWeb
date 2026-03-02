@@ -221,6 +221,13 @@ export default function CompanyPeoplePage() {
                     <Users className="w-4 h-4" />
                     Workers
                 </button>
+                <button
+                    onClick={() => router.push(`/admin/companies/${companyId}/sites`)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                    <Building2 className="w-4 h-4" />
+                    Sites
+                </button>
             </div>
 
             {/* Table */}

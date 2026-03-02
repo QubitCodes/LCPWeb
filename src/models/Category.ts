@@ -2,7 +2,7 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../lib/sequelize';
 
 interface CategoryAttributes {
-  id: string;
+  id: number;
   name: string;
   description?: string;
   created_at?: Date;
@@ -10,13 +10,13 @@ interface CategoryAttributes {
   deleted_at?: Date;
 }
 
-interface CategoryCreationAttributes extends Optional<CategoryAttributes, 'id'> {}
+interface CategoryCreationAttributes extends Optional<CategoryAttributes, 'id'> { }
 
 class Category extends Model<CategoryAttributes, CategoryCreationAttributes> implements CategoryAttributes {
-  public id!: string;
+  public id!: number;
   public name!: string;
   public description!: string;
-  
+
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public readonly deleted_at!: Date;
@@ -25,8 +25,8 @@ class Category extends Model<CategoryAttributes, CategoryCreationAttributes> imp
 (Category as any).init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
       primaryKey: true,
     },
     name: {

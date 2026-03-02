@@ -13,7 +13,8 @@ import {
     CreditCard,
     Bell,
     X,
-    BookOpen
+    BookOpen,
+    ClipboardCheck
 } from 'lucide-react';
 import NavItem from '@/components/sidebar/NavItem';
 import ProfileDropdown from '@/components/sidebar/ProfileDropdown';
@@ -97,6 +98,7 @@ export default function SidebarContent({ role, userName, onLogout, onClose }: Si
                             <SectionLabel label="Settings" className="mt-6" />
 
                             <NavItem href="/admin/settings/reference" icon={Settings} label="Platform Settings" />
+                            <NavItem href="/admin/surveys" icon={ClipboardCheck} label="Surveys" />
                         </>
                     )}
 

@@ -2,20 +2,20 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../lib/sequelize';
 
 interface JobAttributes {
-  id: string;
+  id: number;
   name: string;
-  category_id: string;
+  category_id: number;
   created_at?: Date;
   updated_at?: Date;
   deleted_at?: Date;
 }
 
-interface JobCreationAttributes extends Optional<JobAttributes, 'id'> {}
+interface JobCreationAttributes extends Optional<JobAttributes, 'id'> { }
 
 class Job extends Model<JobAttributes, JobCreationAttributes> implements JobAttributes {
-  public id!: string;
+  public id!: number;
   public name!: string;
-  public category_id!: string;
+  public category_id!: number;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public readonly deleted_at!: Date;
@@ -24,8 +24,8 @@ class Job extends Model<JobAttributes, JobCreationAttributes> implements JobAttr
 (Job as any).init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
       primaryKey: true,
     },
     name: {
@@ -33,7 +33,7 @@ class Job extends Model<JobAttributes, JobCreationAttributes> implements JobAttr
       allowNull: false,
     },
     category_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: false,
     },
   },

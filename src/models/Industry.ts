@@ -2,7 +2,7 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../lib/sequelize';
 
 interface IndustryAttributes {
-  id: string;
+  id: number;
   name: string;
   is_active: boolean;
   created_at?: Date;
@@ -10,13 +10,13 @@ interface IndustryAttributes {
   deleted_at?: Date;
 }
 
-interface IndustryCreationAttributes extends Optional<IndustryAttributes, 'id' | 'is_active'> {}
+interface IndustryCreationAttributes extends Optional<IndustryAttributes, 'id' | 'is_active'> { }
 
 class Industry extends Model<IndustryAttributes, IndustryCreationAttributes> implements IndustryAttributes {
-  public id!: string;
+  public id!: number;
   public name!: string;
   public is_active!: boolean;
-  
+
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public readonly deleted_at!: Date;
@@ -25,8 +25,8 @@ class Industry extends Model<IndustryAttributes, IndustryCreationAttributes> imp
 (Industry as any).init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
       primaryKey: true,
     },
     name: {

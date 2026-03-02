@@ -4,13 +4,26 @@ import sequelize from '../lib/sequelize';
 import { UserRole } from './enums';
 export { UserRole };
 
+/**
+ * User account status.
+ * - active: Can log in normally
+ * - pending: Registered via OTP, awaiting approval
+ * - suspended: Account suspended by admin
+ */
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  PENDING = 'PENDING',
+  SUSPENDED = 'SUSPENDED',
+}
+
 interface UserAttributes {
   id: string;
-  email: string;
-  password_hash: string;
+  email?: string | null;
+  firebase_uid?: string | null;
   first_name: string;
   last_name: string;
   role: UserRole;
+  status?: UserStatus;
   country_code?: string;
   phone?: string;
   company_id?: string | null;
@@ -21,15 +34,16 @@ interface UserAttributes {
   deleted_at?: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'years_experience' | 'documents'> { }
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'email' | 'firebase_uid' | 'status' | 'years_experience' | 'documents'> { }
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare public id: string;
-  declare public email: string;
-  declare public password_hash: string;
+  declare public email: string | null;
+  declare public firebase_uid: string | null;
   declare public first_name: string;
   declare public last_name: string;
   declare public role: UserRole;
+  declare public status: UserStatus;
   declare public country_code: string;
   declare public phone: string;
   declare public company_id: string | null;
@@ -49,13 +63,20 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     },
     email: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       unique: true,
-      validate: { isEmail: true },
+      validate: {
+        isEmailOrNull(value: string | null) {
+          if (value !== null && value !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            throw new Error('Invalid email format');
+          }
+        }
+      },
     },
-    password_hash: {
+    firebase_uid: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
+      unique: true,
     },
     first_name: {
       type: DataTypes.STRING,
@@ -70,6 +91,11 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
       allowNull: false,
       defaultValue: UserRole.WORKER,
     },
+    status: {
+      type: DataTypes.ENUM(...Object.values(UserStatus)),
+      allowNull: false,
+      defaultValue: UserStatus.ACTIVE,
+    },
     country_code: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -77,7 +103,8 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     },
     phone: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: false,
+      unique: true,
     },
     company_id: {
       type: DataTypes.UUID,

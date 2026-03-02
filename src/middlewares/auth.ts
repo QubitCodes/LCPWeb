@@ -6,9 +6,14 @@ import { authData } from './QubitRequest';
 // Define paths that are public
 const PUBLIC_PATHS = [
     '/admin/login',
+    '/company/login',
     '/company/register',
     '/api/v1/auth/login',
-    '/api/v1/auth/register-company'
+    '/api/v1/auth/register-company',
+    '/api/v1/auth/register-supervisor',
+    '/api/v1/auth/register-phone',
+    '/api/v1/auth/firebase',
+    '/api/v1/auth/check-user',
 ];
 
 export async function verifyAuth(request: NextRequest) {

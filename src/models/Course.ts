@@ -3,7 +3,7 @@ import sequelize from '../lib/sequelize';
 
 interface CourseAttributes {
   id: string;
-  job_id: string;
+  job_id: number;
   title: string;
   description?: string;
   is_active: boolean;
@@ -12,11 +12,11 @@ interface CourseAttributes {
   deleted_at?: Date;
 }
 
-interface CourseCreationAttributes extends Optional<CourseAttributes, 'id' | 'is_active'> {}
+interface CourseCreationAttributes extends Optional<CourseAttributes, 'id' | 'is_active'> { }
 
 class Course extends Model<CourseAttributes, CourseCreationAttributes> implements CourseAttributes {
   public id!: string;
-  public job_id!: string;
+  public job_id!: number;
   public title!: string;
   public description!: string;
   public is_active!: boolean;
@@ -33,7 +33,7 @@ class Course extends Model<CourseAttributes, CourseCreationAttributes> implement
       primaryKey: true,
     },
     job_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: false,
       unique: true,
     },

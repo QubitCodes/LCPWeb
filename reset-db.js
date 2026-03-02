@@ -1,0 +1,29 @@
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
+
+const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASS, {
+	host: process.env.DB_HOST,
+	port: process.env.DB_PORT,
+	dialect: 'postgres',
+	dialectOptions: {
+		ssl: process.env.DB_SSL === 'true' ? { require: true, rejectUnauthorized: false } : false
+	},
+	logging: false
+});
+
+async function reset() {
+	try {
+		await sequelize.authenticate();
+		console.log('Connected to DB...');
+		await sequelize.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+		console.log('Schema dropped and recreated successfully.');
+		// Drop SequelizeMeta table to be truly clean
+		await sequelize.query('DROP TABLE IF EXISTS "SequelizeMeta" CASCADE;');
+	} catch (err) {
+		console.error('Error resetting DB:', err);
+	} finally {
+		process.exit(0);
+	}
+}
+
+reset();

@@ -20,6 +20,16 @@ import LevelRecommendation from './LevelRecommendation';
 import Certificate from './Certificate';
 import CompanyMembershipHistory from './CompanyMembershipHistory';
 import Industry from './Industry';
+import UserApproval from './UserApproval';
+import CompanyDetail from './CompanyDetail';
+import CompanySite from './CompanySite';
+import SurveyTemplate from './SurveyTemplate';
+import SurveySection from './SurveySection';
+import SurveyQuestion from './SurveyQuestion';
+import SurveyQuestionOption from './SurveyQuestionOption';
+import SurveyResponse from './SurveyResponse';
+import SurveyAnswer from './SurveyAnswer';
+import SurveySignoff from './SurveySignoff';
 
 // =============================================================
 // DEFINING ASSOCIATIONS CENTRALLY
@@ -33,6 +43,12 @@ import Industry from './Industry';
 // Company <-> Industry
 (Company as any).belongsTo(Industry, { foreignKey: 'industry_id', as: 'industry' });
 (Industry as any).hasMany(Company, { foreignKey: 'industry_id', as: 'companies' });
+
+// User Approvals
+(UserApproval as any).belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+(UserApproval as any).belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+(UserApproval as any).belongsTo(User, { foreignKey: 'approved_by', as: 'approver' });
+(User as any).hasMany(UserApproval, { foreignKey: 'user_id', as: 'approvals' });
 
 // Job <-> Category
 (Job as any).belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
@@ -104,6 +120,71 @@ import Industry from './Industry';
 (CompanyMembershipHistory as any).belongsTo(Company, { foreignKey: 'to_company_id', as: 'to_company' });
 (CompanyMembershipHistory as any).belongsTo(User, { foreignKey: 'initiated_by_user_id', as: 'initiator' });
 
+// Company Details (one-to-one, onboarding state)
+(Company as any).hasOne(CompanyDetail, { foreignKey: 'company_id', as: 'details' });
+(CompanyDetail as any).belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+// Company Sites (one-to-many)
+(Company as any).hasMany(CompanySite, { foreignKey: 'company_id', as: 'sites' });
+(CompanySite as any).belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+// CompanySite -> User (contractor representative)
+(CompanySite as any).belongsTo(User, { foreignKey: 'contractor_rep_id', as: 'contractor_rep' });
+// CompanySite -> User (site supervisor / in-charge)
+(CompanySite as any).belongsTo(User, { foreignKey: 'site_supervisor_id', as: 'site_supervisor' });
+
+// =============================================================
+// SURVEY ENGINE ASSOCIATIONS
+// =============================================================
+
+// SurveyTemplate -> Industry (optional filter)
+(SurveyTemplate as any).belongsTo(Industry, { foreignKey: 'industry_id', as: 'industry' });
+(Industry as any).hasMany(SurveyTemplate, { foreignKey: 'industry_id', as: 'survey_templates' });
+
+// SurveyTemplate -> User (creator)
+(SurveyTemplate as any).belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+// SurveyTemplate -> SurveySection
+(SurveyTemplate as any).hasMany(SurveySection, { foreignKey: 'template_id', as: 'sections' });
+(SurveySection as any).belongsTo(SurveyTemplate, { foreignKey: 'template_id', as: 'template' });
+
+// SurveySection -> SurveyQuestion
+(SurveySection as any).hasMany(SurveyQuestion, { foreignKey: 'section_id', as: 'questions' });
+(SurveyQuestion as any).belongsTo(SurveySection, { foreignKey: 'section_id', as: 'section' });
+
+// SurveyQuestion -> SurveyQuestionOption
+(SurveyQuestion as any).hasMany(SurveyQuestionOption, { foreignKey: 'question_id', as: 'options' });
+(SurveyQuestionOption as any).belongsTo(SurveyQuestion, { foreignKey: 'question_id', as: 'question' });
+
+// SurveyTemplate -> SurveyResponse
+(SurveyTemplate as any).hasMany(SurveyResponse, { foreignKey: 'template_id', as: 'responses' });
+(SurveyResponse as any).belongsTo(SurveyTemplate, { foreignKey: 'template_id', as: 'template' });
+
+// SurveyResponse -> CompanySite (optional)
+(SurveyResponse as any).belongsTo(CompanySite, { foreignKey: 'site_id', as: 'site' });
+(CompanySite as any).hasMany(SurveyResponse, { foreignKey: 'site_id', as: 'survey_responses' });
+
+// SurveyResponse -> Company
+(SurveyResponse as any).belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+(Company as any).hasMany(SurveyResponse, { foreignKey: 'company_id', as: 'survey_responses' });
+
+// SurveyResponse -> User (respondent)
+(SurveyResponse as any).belongsTo(User, { foreignKey: 'respondent_id', as: 'respondent' });
+
+// SurveyResponse -> SurveyAnswer
+(SurveyResponse as any).hasMany(SurveyAnswer, { foreignKey: 'response_id', as: 'answers' });
+(SurveyAnswer as any).belongsTo(SurveyResponse, { foreignKey: 'response_id', as: 'response' });
+
+// SurveyAnswer -> SurveyQuestion
+(SurveyAnswer as any).belongsTo(SurveyQuestion, { foreignKey: 'question_id', as: 'question' });
+
+// SurveyResponse -> SurveySignoff
+(SurveyResponse as any).hasMany(SurveySignoff, { foreignKey: 'response_id', as: 'signoffs' });
+(SurveySignoff as any).belongsTo(SurveyResponse, { foreignKey: 'response_id', as: 'response' });
+
+// SurveySignoff -> User (signer, optional)
+(SurveySignoff as any).belongsTo(User, { foreignKey: 'user_id', as: 'signer' });
+
 const models = {
   User,
   Company,
@@ -125,7 +206,17 @@ const models = {
   LevelRecommendation,
   Certificate,
   CompanyMembershipHistory,
-  Industry
+  Industry,
+  UserApproval,
+  CompanyDetail,
+  CompanySite,
+  SurveyTemplate,
+  SurveySection,
+  SurveyQuestion,
+  SurveyQuestionOption,
+  SurveyResponse,
+  SurveyAnswer,
+  SurveySignoff
 };
 
 export {
@@ -150,7 +241,17 @@ export {
   LevelRecommendation,
   Certificate,
   CompanyMembershipHistory,
-  Industry
+  Industry,
+  UserApproval,
+  CompanyDetail,
+  CompanySite,
+  SurveyTemplate,
+  SurveySection,
+  SurveyQuestion,
+  SurveyQuestionOption,
+  SurveyResponse,
+  SurveyAnswer,
+  SurveySignoff
 };
 
 export default models;

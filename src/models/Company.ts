@@ -5,7 +5,7 @@ interface CompanyAttributes {
   id: string;
   name: string;
   company_id: string; // Renamed from registration_number, auto-generated
-  industry_id?: string;
+  industry_id?: number;
   tax_id?: string;
   address?: string;
   website?: string;
@@ -19,13 +19,13 @@ interface CompanyAttributes {
   deleted_at?: Date;
 }
 
-interface CompanyCreationAttributes extends Optional<CompanyAttributes, 'id' | 'status' | 'approval_status' | 'documents' | 'website' | 'address' | 'tax_id' | 'industry_id'> {}
+interface CompanyCreationAttributes extends Optional<CompanyAttributes, 'id' | 'status' | 'approval_status' | 'documents' | 'website' | 'address' | 'tax_id' | 'industry_id'> { }
 
 class Company extends Model<CompanyAttributes, CompanyCreationAttributes> implements CompanyAttributes {
   public id!: string;
   public name!: string;
   public company_id!: string;
-  public industry_id!: string;
+  public industry_id!: number;
   public tax_id!: string;
   public address!: string;
   public website!: string;
@@ -34,7 +34,7 @@ class Company extends Model<CompanyAttributes, CompanyCreationAttributes> implem
   public status!: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   public approval_status!: 'PENDING' | 'APPROVED' | 'REJECTED';
   public documents!: object;
-  
+
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public readonly deleted_at!: Date;
@@ -57,7 +57,7 @@ class Company extends Model<CompanyAttributes, CompanyCreationAttributes> implem
       unique: true,
     },
     industry_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
     tax_id: {

@@ -2,26 +2,24 @@ import { NextRequest } from 'next/server';
 import { AuthController } from '@/controllers/AuthController';
 import { sendResponse, RESPONSE_CODES } from '@/utils/responseHandler';
 import { z } from 'zod';
-import { cookies } from 'next/headers';
 import { UserRole } from '@/models/enums';
 
 const registerPhoneSchema = z.object({
     idToken: z.string(),
-    email: z.string().email(),
     first_name: z.string().min(2),
     last_name: z.string().min(2),
     country_code: z.string().startsWith('+'),
     phone: z.string().min(5),
+    email: z.string().email().optional().or(z.literal('')), // Optional email
     role: z.nativeEnum(UserRole),
-    company_id: z.string().optional(),
-    company_name: z.string().optional(), // For Supervisors creating a company
+    company_id: z.string().min(1), // 6-digit company code
 });
 
 /**
  * @swagger
  * /api/v1/auth/register-phone:
  *   post:
- *     description: Register new user verified via Phone Auth
+ *     description: Register new user verified via Phone Auth. User will be in pending status until approved.
  */
 export async function POST(req: NextRequest) {
     try {
@@ -49,17 +47,7 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // Set HttpOnly Cookie
-        if (result.data) {
-            (await cookies()).set('auth_token', result.data.token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 60 * 60 * 24, // 1 day
-                path: '/',
-            });
-        }
-
+        // No cookie setting — user is pending approval, cannot login yet
         return sendResponse(200, {
             status: true,
             message: result.message,

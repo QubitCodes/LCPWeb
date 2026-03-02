@@ -10,7 +10,7 @@ const phoneLoginSchema = z.object({
 
 /**
  * @swagger
- * /api/v1/auth/phone-login:
+ * /api/v1/auth/firebase/phone:
  *   post:
  *     description: Login user with Firebase Phone Auth ID Token
  */

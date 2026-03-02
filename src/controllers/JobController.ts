@@ -71,8 +71,8 @@ export class JobController {
         userId: actorId,
         action: 'CREATE_JOB',
         entityType: 'JOB',
-        entityId: job.id,
-        details: { name: job.name, category: data.category_id },
+        entityId: job.id.toString(),
+        details: { name: job.name, category: Number(data.category_id) },
         ipAddress: ip
       });
 
@@ -100,8 +100,8 @@ export class JobController {
         userId: actorId,
         action: 'UPDATE_JOB',
         entityType: 'JOB',
-        entityId: job.id,
-        details: { name: data.name, category: data.category_id },
+        entityId: job.id.toString(),
+        details: { name: data.name, category: Number(data.category_id) },
         ipAddress: '0.0.0.0'
       });
 

@@ -31,9 +31,8 @@ export class CompanyController {
 
     const whereClause: any = {};
 
-    // Determine dialect for case-insensitive search
-    const dialect = sequelize.getDialect();
-    const likeOp = dialect === 'postgres' ? Op.iLike : Op.like;
+    // Use Postgres iLike for case-insensitive search
+    const likeOp = Op.iLike;
 
     if (search) {
       whereClause[Op.or] = [

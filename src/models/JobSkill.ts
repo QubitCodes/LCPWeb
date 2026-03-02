@@ -3,18 +3,18 @@ import sequelize from '../lib/sequelize';
 
 interface JobSkillAttributes {
   id: string;
-  job_id: string;
+  job_id: number;
   skill_id: string;
   difficulty_level: 'BASIC' | 'INTERMEDIATE' | 'ADVANCED';
   created_at?: Date;
   updated_at?: Date;
 }
 
-interface JobSkillCreationAttributes extends Optional<JobSkillAttributes, 'id'> {}
+interface JobSkillCreationAttributes extends Optional<JobSkillAttributes, 'id'> { }
 
 class JobSkill extends Model<JobSkillAttributes, JobSkillCreationAttributes> implements JobSkillAttributes {
   public id!: string;
-  public job_id!: string;
+  public job_id!: number;
   public skill_id!: string;
   public difficulty_level!: 'BASIC' | 'INTERMEDIATE' | 'ADVANCED';
   public readonly created_at!: Date;
@@ -29,7 +29,7 @@ class JobSkill extends Model<JobSkillAttributes, JobSkillCreationAttributes> imp
       primaryKey: true,
     },
     job_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: false,
     },
     skill_id: {
