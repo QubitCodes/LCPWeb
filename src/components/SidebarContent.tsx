@@ -86,14 +86,14 @@ export default function SidebarContent({ role, userName, onLogout, onClose }: Si
                              * The /courses route is still accessible via URL and from the Jobs page.
                              */}
                             <NavItem href="/admin/companies" icon={Briefcase} label="Companies" />
-                            <NavItem href="/admin/jobs" icon={BookOpen} label="Jobs / Courses" isBeta />
+                            {/* <NavItem href="/admin/jobs" icon={BookOpen} label="Jobs / Courses" isBeta /> */}
 
-                            {role === 'SUPER_ADMIN' && (
+                            {/* {role === 'SUPER_ADMIN' && (
                                 <>
                                     <NavItem href="/admin/payments" icon={DollarSign} label="Payments" />
                                     <NavItem href="/admin/recommendations" icon={Award} label="Approvals" />
                                 </>
-                            )}
+                            )} */}
 
                             <SectionLabel label="Settings" className="mt-6" />
 
