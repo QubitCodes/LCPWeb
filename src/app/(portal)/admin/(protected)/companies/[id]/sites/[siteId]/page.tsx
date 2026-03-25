@@ -19,6 +19,8 @@ import {
 	CheckCircle2,
 	Clock,
 	FileEdit,
+	Trash2,
+	X,
 } from 'lucide-react';
 
 /** Site detail from API */
@@ -88,6 +90,40 @@ export default function SiteDetailPage() {
 	const [loading, setLoading] = useState(true);
 	const [startingSurvey, setStartingSurvey] = useState(false);
 	const [systemTemplateId, setSystemTemplateId] = useState<string | null>(null);
+	const [userRole, setUserRole] = useState<string | null>(null);
+	const [deletingId, setDeletingId] = useState<string | null>(null);
+
+	// Edit Site modal state
+	const [showEditModal, setShowEditModal] = useState(false);
+	const [editSiteName, setEditSiteName] = useState('');
+	const [editSiteAddress, setEditSiteAddress] = useState('');
+	const [editProjectStage, setEditProjectStage] = useState('');
+	const [editDuration, setEditDuration] = useState('');
+	const [updating, setUpdating] = useState(false);
+
+	const openEditModal = () => {
+		if (site) {
+			setEditSiteName(site.name || '');
+			setEditSiteAddress(site.address || '');
+			setEditProjectStage(site.project_stage || '');
+			setEditDuration(site.expected_duration_months?.toString() || '');
+			setShowEditModal(true);
+		}
+	};
+
+	const isSuperAdmin = userRole === 'SUPER_ADMIN';
+
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			try {
+				const userStr = localStorage.getItem('user');
+				if (userStr) {
+					const u = JSON.parse(userStr);
+					setUserRole(u.role || null);
+				}
+			} catch (err) { }
+		}
+	}, []);
 
 	/** Fetch helper with auth */
 	const apiFetch = useCallback(async (url: string, opts: RequestInit = {}) => {
@@ -97,7 +133,12 @@ export default function SiteDetailPage() {
 			headers['Content-Type'] = 'application/json';
 		}
 		const res = await fetch(url, { ...opts, headers });
-		return res.json();
+		const text = await res.text();
+		try {
+			return text ? JSON.parse(text) : { status: res.ok };
+		} catch (e) {
+			return { status: res.ok, message: 'Invalid JSON response' };
+		}
 	}, []);
 
 	/** Fetch site detail */
@@ -184,6 +225,70 @@ export default function SiteDetailPage() {
 		}
 	};
 
+	/** Update site  */
+	const handleUpdateSite = async () => {
+		if (!editSiteName.trim()) return;
+		setUpdating(true);
+		try {
+			const json = await apiFetch(`/api/v1/companies/${companyId}/sites/${siteId}`, {
+				method: 'PUT',
+				body: JSON.stringify({
+					name: editSiteName.trim(),
+					address: editSiteAddress.trim() || null,
+					project_stage: editProjectStage || null,
+					expected_duration_months: editDuration ? parseInt(editDuration) : null,
+				}),
+			});
+
+			if (json.status) {
+				setShowEditModal(false);
+				fetchSite(); // refresh newly edited data
+			} else {
+				alert(json.message || 'Failed to update site');
+			}
+		} catch (err) {
+			console.error('Failed to update site:', err);
+			alert('Failed to update site');
+		} finally {
+			setUpdating(false);
+		}
+	};
+
+	/** Delete site (Super Admin) */
+	const handleDeleteSite = async () => {
+		if (!confirm('Are you sure you want to permanently delete this site?')) return;
+		try {
+			const json = await apiFetch(`/api/v1/companies/${companyId}/sites/${siteId}`, { method: 'DELETE' });
+			if (json.status) {
+				router.push(`/admin/companies/${companyId}/sites`);
+			} else {
+				alert(json.message || 'Failed to delete site');
+			}
+		} catch (err) {
+			console.error('Failed to delete site:', err);
+			alert('Failed to delete site');
+		}
+	};
+
+	/** Delete a survey response */
+	const handleDeleteSurvey = async (id: string) => {
+		if (!confirm('Are you sure you want to permanently delete this survey response?')) return;
+		setDeletingId(id);
+		try {
+			const res = await apiFetch(`/api/v1/surveys/responses/${id}`, { method: 'DELETE' });
+			if (res.status) {
+				fetchSite(); // Refresh the table
+			} else {
+				alert(res.message || 'Failed to delete survey');
+			}
+		} catch (err) {
+			console.error('Failed to delete survey:', err);
+			alert('Failed to delete survey');
+		} finally {
+			setDeletingId(null);
+		}
+	};
+
 	/** Survey responses table columns */
 	const responseColumns = useMemo<ColumnDef<SurveyResponseRow>[]>(() => [
 		{
@@ -245,16 +350,28 @@ export default function SiteDetailPage() {
 		{
 			id: 'actions',
 			cell: ({ row }) => (
-				<button
-					onClick={() => router.push(`/admin/surveys/fill/${row.original.id}`)}
-					className="p-1.5 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 rounded transition-colors"
-					title={row.original.status === 'COMPLETED' ? 'View Survey' : 'Continue Survey'}
-				>
-					<Eye className="w-4 h-4" />
-				</button>
+				<div className="flex items-center gap-1 justify-end">
+					<button
+						onClick={() => router.push(`/admin/surveys/fill/${row.original.id}?company_id=${companyId}&site_id=${siteId}&readonly=company_id,site_id`)}
+						className="p-1.5 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 rounded transition-colors"
+						title={row.original.status === 'COMPLETED' ? 'View Survey' : 'Continue Survey'}
+					>
+						<Eye className="w-4 h-4" />
+					</button>
+					{isSuperAdmin && (
+						<button
+							onClick={() => handleDeleteSurvey(row.original.id)}
+							disabled={deletingId === row.original.id}
+							className="p-1.5 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 rounded transition-colors"
+							title="Delete Survey"
+						>
+							{deletingId === row.original.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+						</button>
+					)}
+				</div>
 			),
 		},
-	], [router]);
+	], [router, companyId, siteId, isSuperAdmin, deletingId]);
 
 	// Loading state
 	if (loading) {
@@ -280,41 +397,65 @@ export default function SiteDetailPage() {
 	return (
 		<div className="space-y-6">
 			{/* ── Site Info Card ── */}
-			<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+			<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
 				{/* Gradient banner */}
-				<div className="h-20 bg-gradient-to-r from-emerald-600 to-teal-600" />
+				<div className="h-28 bg-gradient-to-r from-emerald-600 to-teal-600" />
 
 				<div className="px-6 pb-6">
-					{/* Icon + title */}
-					<div className="flex items-end gap-4 -mt-6">
-						<div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 border-4 border-white dark:border-slate-900 flex items-center justify-center text-white shadow-lg">
-							<MapPin className="w-7 h-7" />
-						</div>
-						<div className="pb-1 flex-1 min-w-0">
-							<h2 className="text-xl font-bold text-slate-900 dark:text-white truncate">
-								{site.name}
-							</h2>
-							{site.company && (
-								<div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-									<Building2 className="w-3.5 h-3.5" />
-									{site.company.name}
-								</div>
-							)}
+					<div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-10 mb-6">
+						{/* Icon + title */}
+						<div className="flex items-end gap-5">
+							<div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 border-[6px] border-white dark:border-slate-900 flex items-center justify-center text-white shadow-lg shrink-0">
+								<MapPin className="w-8 h-8" />
+							</div>
+							<div className="pb-1.5">
+								<h2 className="text-2xl font-bold text-slate-900 dark:text-white truncate">
+									{site.name}
+								</h2>
+								{site.company && (
+									<div className="flex items-center gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
+										<Building2 className="w-4 h-4 shrink-0" />
+										<span className="truncate">{site.company.name}</span>
+									</div>
+								)}
+							</div>
 						</div>
 
-						{/* Start Survey button */}
-						<button
-							onClick={handleStartSurvey}
-							disabled={startingSurvey || !systemTemplateId}
-							className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors shadow-sm flex-shrink-0"
-						>
-							{startingSurvey ? (
-								<Loader2 className="w-4 h-4 animate-spin" />
-							) : (
-								<Play className="w-4 h-4" />
+						{/* Actions */}
+						<div className="flex items-center gap-3">
+							{isSuperAdmin && (
+								<>
+									<button
+										onClick={openEditModal}
+										className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors shadow-sm flex-shrink-0"
+									>
+										<FileEdit className="w-4 h-4 text-slate-500" />
+										Update
+									</button>
+									<button
+										onClick={handleDeleteSite}
+										className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/10 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors shadow-sm flex-shrink-0"
+									>
+										<Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
+										Delete
+									</button>
+								</>
 							)}
-							{startingSurvey ? 'Starting...' : 'Start Survey'}
-						</button>
+
+							{/* Start Survey button */}
+							<button
+								onClick={handleStartSurvey}
+								disabled={startingSurvey || !systemTemplateId}
+								className="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors shadow flex-shrink-0"
+							>
+								{startingSurvey ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									<Play className="w-4 h-4" />
+								)}
+								{startingSurvey ? 'Starting...' : 'New Survey'}
+							</button>
+						</div>
 					</div>
 
 					{/* Info grid */}
@@ -377,6 +518,103 @@ export default function SiteDetailPage() {
 					</div>
 				)}
 			</div>
+
+			{/* ── Edit Site Modal ── */}
+			{showEditModal && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+					<div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-6 mx-4">
+						<div className="flex items-center justify-between mb-4">
+							<h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+								Update Site Details
+							</h2>
+							<button
+								onClick={() => setShowEditModal(false)}
+								className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+							>
+								<X className="w-5 h-5" />
+							</button>
+						</div>
+
+						{/* Site Name */}
+						<label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+							Site Name *
+						</label>
+						<input
+							type="text"
+							value={editSiteName}
+							onChange={(e) => setEditSiteName(e.target.value)}
+							placeholder="e.g. Downtown Tower Project"
+							className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3"
+							autoFocus
+						/>
+
+						{/* Address */}
+						<label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+							Address
+						</label>
+						<textarea
+							value={editSiteAddress}
+							onChange={(e) => setEditSiteAddress(e.target.value)}
+							placeholder="Optional site address..."
+							rows={2}
+							className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3"
+						/>
+
+						<div className="grid grid-cols-2 gap-3 mb-4">
+							{/* Project Stage */}
+							<div>
+								<label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+									Stage
+								</label>
+								<select
+									value={editProjectStage}
+									onChange={(e) => setEditProjectStage(e.target.value)}
+									className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+								>
+									<option value="">Unknown</option>
+									<option value="FOUNDATION">Foundation</option>
+									<option value="STRUCTURE">Structure</option>
+									<option value="MASONRY">Masonry</option>
+									<option value="FINISHING">Finishing</option>
+									<option value="MEP">MEP</option>
+								</select>
+							</div>
+
+							{/* Duration */}
+							<div>
+								<label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+									Months
+								</label>
+								<input
+									type="number"
+									value={editDuration}
+									onChange={(e) => setEditDuration(e.target.value)}
+									placeholder="e.g. 12"
+									min="1"
+									className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500"
+								/>
+							</div>
+						</div>
+
+						{/* Actions */}
+						<div className="flex justify-end gap-3">
+							<button
+								onClick={() => setShowEditModal(false)}
+								className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+							>
+								Cancel
+							</button>
+							<button
+								onClick={handleUpdateSite}
+								disabled={updating || !editSiteName.trim()}
+								className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
+							>
+								{updating ? 'Updating...' : 'Save Changes'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

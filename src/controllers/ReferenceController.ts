@@ -22,6 +22,7 @@ export class ReferenceController {
 
     const items = await Model.findAll({
       order: [['name', 'ASC']],
+      include: type === 'categories' ? ['industry'] : undefined,
     });
 
     return { success: true, data: items, code: 100 };
@@ -36,10 +37,19 @@ export class ReferenceController {
       return { success: false, message: 'Invalid reference type', code: 201 };
     }
 
-    const newItem = await Model.create({
+    if (type === 'categories' && !data.industry_id) {
+      return { success: false, message: 'Industry is required for categories', code: 202 };
+    }
+
+    const payload: any = {
       name: data.name,
       is_active: data.is_active !== undefined ? data.is_active : true,
-    });
+    };
+    if (type === 'categories' && data.industry_id !== undefined) {
+      payload.industry_id = data.industry_id || null;
+    }
+
+    const newItem = await Model.create(payload);
 
     await AuditService.log({
       userId: actorId,
@@ -67,11 +77,20 @@ export class ReferenceController {
       return { success: false, message: 'Item not found', code: 310 };
     }
 
+    if (type === 'categories' && !data.industry_id) {
+      return { success: false, message: 'Industry is required for categories', code: 202 };
+    }
+
     const oldData = { ...item.toJSON() };
-    await item.update({
+    const payload: any = {
       name: data.name !== undefined ? data.name : item.name,
       is_active: data.is_active !== undefined ? data.is_active : item.is_active,
-    });
+    };
+    if (type === 'categories' && data.industry_id !== undefined) {
+      payload.industry_id = data.industry_id || null;
+    }
+
+    await item.update(payload);
 
     await AuditService.log({
       userId: actorId,

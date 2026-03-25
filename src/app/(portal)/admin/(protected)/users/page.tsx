@@ -28,6 +28,7 @@ interface User {
     role: string;
     company?: { id: string; name: string };
     created_at: string;
+    status: string;
 }
 
 export default function UsersPage() {

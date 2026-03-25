@@ -42,10 +42,25 @@ export default function JobsPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/v1/jobs');
-            const json = await res.json();
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/v1/jobs', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const text = await res.text();
+            let json;
+            try {
+                json = text ? JSON.parse(text) : { status: false, message: 'Empty response' };
+            } catch (e) {
+                console.error('API returned non-JSON:', text);
+                json = { status: false, message: 'Invalid API response format' };
+            }
+            
             if (json.status) {
                 setData(json.data);
+            } else {
+                console.error('API Error:', json.message);
             }
         } catch (error) {
             console.error('Failed to fetch jobs:', error);

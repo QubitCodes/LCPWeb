@@ -115,3 +115,32 @@ export async function POST(req: NextRequest, context: RouteContext) {
 		return sendResponse(500, { status: false, message: 'Internal Server Error', code: RESPONSE_CODES.GENERAL_SERVER_ERROR });
 	}
 }
+
+/**
+ * DELETE — Permanently delete a survey response (Super Admin and Admin only).
+ */
+export async function DELETE(req: NextRequest, context: RouteContext) {
+	try {
+		const user = await authenticateRequest(req);
+		if (!user) {
+			return sendResponse(401, { status: false, message: 'Authentication required', code: RESPONSE_CODES.AUTHENTICATION_ERROR });
+		}
+
+		if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN') {
+			return sendResponse(403, { status: false, message: 'Only admins can delete surveys', code: RESPONSE_CODES.PERMISSION_DENIED });
+		}
+
+		const { responseId } = await context.params;
+		const result = await SurveyController.deleteResponse(responseId);
+
+		if (!result.success) {
+			const httpStatus = result.code === 310 ? 404 : 400;
+			return sendResponse(httpStatus, { status: false, message: result.message, code: result.code });
+		}
+
+		return sendResponse(200, { status: true, message: result.message, code: RESPONSE_CODES.OK });
+	} catch (error) {
+		console.error('Response DELETE Error:', error);
+		return sendResponse(500, { status: false, message: 'Internal Server Error', code: RESPONSE_CODES.GENERAL_SERVER_ERROR });
+	}
+}

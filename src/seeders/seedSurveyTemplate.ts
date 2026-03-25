@@ -120,7 +120,7 @@ export async function seedLcpSiteValidationChecklist() {
 				{ text: 'Site Name', type: 'TEXT', is_required: true, sequence_order: 0 },
 				{ text: 'Site Location', type: 'TEXT', is_required: true, sequence_order: 1 },
 				{
-					text: 'Contractor / Company Name',
+					text: 'Company Name',
 					type: 'DATA_SELECT',
 					is_required: true,
 					sequence_order: 2,

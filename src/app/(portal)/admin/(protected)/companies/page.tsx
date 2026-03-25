@@ -8,8 +8,6 @@ import { MoreHorizontal, Pencil, Trash2, Eye, Building2, Plus, UploadCloud } fro
 import Link from 'next/link';
 import BulkImportDialog from './components/BulkImportDialog';
 import AddCompanyDialog from './components/AddCompanyDialog';
-import ViewCompanyDialog from './components/ViewCompanyDialog';
-import EditCompanyDialog from './components/EditCompanyDialog';
 
 // Define the Company type based on actual API response
 interface Company {
@@ -35,10 +33,6 @@ export default function CompaniesPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [isImportOpen, setIsImportOpen] = useState(false);
     const [isAddOpen, setIsAddOpen] = useState(false);
-
-    // View/Edit Dialog State
-    const [viewCompany, setViewCompany] = useState<Company | null>(null);
-    const [editCompany, setEditCompany] = useState<Company | null>(null);
 
     // Pagination state
     const [pageIndex, setPageIndex] = useState(0);
@@ -158,22 +152,23 @@ export default function CompaniesPage() {
         {
             id: 'actions',
             cell: ({ row }) => {
+                const companyId = row.original.id;
                 return (
                     <div className="flex items-center justify-end gap-2">
-                        <button
-                            onClick={() => setViewCompany(row.original)}
+                        <Link
+                            href={`/admin/companies/${companyId}`}
                             className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
                             title="View Details"
                         >
                             <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => setEditCompany(row.original)}
+                        </Link>
+                        <Link
+                            href={`/admin/companies/${companyId}/edit`}
                             className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
                             title="Edit Company"
                         >
                             <Pencil className="w-4 h-4" />
-                        </button>
+                        </Link>
                     </div>
                 );
             }
@@ -211,21 +206,6 @@ export default function CompaniesPage() {
                 isOpen={isAddOpen}
                 onClose={() => setIsAddOpen(false)}
                 onSuccess={fetchData}
-            />
-
-            {/* View Company Dialog */}
-            <ViewCompanyDialog
-                isOpen={!!viewCompany}
-                onClose={() => setViewCompany(null)}
-                company={viewCompany}
-            />
-
-            {/* Edit Company Dialog */}
-            <EditCompanyDialog
-                isOpen={!!editCompany}
-                onClose={() => setEditCompany(null)}
-                onSuccess={fetchData}
-                company={editCompany}
             />
         </>
     );

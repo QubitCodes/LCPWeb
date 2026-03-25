@@ -26,6 +26,27 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@controllers/*": [
+        "./src/controllers/*"
+      ],
+      "@db/*": [
+        "./src/db/*"
+      ],
+      "@schemas/*": [
+        "./src/schemas/*"
+      ],
+      "@services/*": [
+        "./src/services/*"
+      ],
+      "@utils/*": [
+        "./src/utils/*"
+      ],
+      "@config/*": [
+        "./src/config/*"
+      ],
+      "@api/*": [
+        "./src/app/api/*"
       ]
     }
   },
@@ -37,6 +58,7 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "node_modules1"
   ]
 }

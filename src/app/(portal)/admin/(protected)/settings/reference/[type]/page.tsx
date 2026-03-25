@@ -15,6 +15,8 @@ interface RefItem {
     id: string;
     name: string;
     is_active?: boolean;
+    industry_id?: number;
+    industry?: { id: number; name: string };
 }
 
 /**
@@ -38,9 +40,14 @@ export default function ReferenceTypePage() {
     // Inline create state
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState('');
+    const [newIndustryId, setNewIndustryId] = useState('');
 
     // Action loading
     const [actionLoading, setActionLoading] = useState(false);
+
+    // Categories extra: Industries list
+    const [industries, setIndustries] = useState<{ id: number; name: string }[]>([]);
+    const [editIndustryId, setEditIndustryId] = useState('');
 
     /** Fetch reference items by type */
     const fetchData = useCallback(async () => {
@@ -64,12 +71,26 @@ export default function ReferenceTypePage() {
         }
     }, [type]);
 
+    const fetchIndustries = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/v1/reference/industries`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const json = await res.json();
+            if (json.status) setIndustries(json.data || []);
+        } catch (error) {
+            console.error('Failed to fetch industries:', error);
+        }
+    }, []);
+
     useEffect(() => {
         initialLoadDone.current = false;
         fetchData();
+        if (type === 'categories') fetchIndustries();
         setEditId(null);
         setIsCreating(false);
-    }, [type, fetchData]);
+    }, [type, fetchData, fetchIndustries]);
 
     /** Create a new item */
     const handleCreate = async () => {
@@ -80,11 +101,15 @@ export default function ReferenceTypePage() {
             const res = await fetch(`/api/v1/reference/${type}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName.trim() })
+                body: JSON.stringify({
+                    name: newName.trim(),
+                    ...(type === 'categories' && newIndustryId ? { industry_id: Number(newIndustryId) } : {})
+                })
             });
             const json = await res.json();
             if (json.status) {
                 setNewName('');
+                setNewIndustryId('');
                 setIsCreating(false);
                 fetchData();
                 toast.success(`${typeLabel.slice(0, -1)} created successfully.`);
@@ -107,12 +132,16 @@ export default function ReferenceTypePage() {
             const res = await fetch(`/api/v1/reference/${type}?id=${id}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: editName.trim() })
+                body: JSON.stringify({
+                    name: editName.trim(),
+                    ...(type === 'categories' && editIndustryId ? { industry_id: Number(editIndustryId) } : {})
+                })
             });
             const json = await res.json();
             if (json.status) {
                 setEditId(null);
                 setEditName('');
+                setEditIndustryId('');
                 fetchData();
                 toast.success(`${typeLabel.slice(0, -1)} updated successfully.`);
             } else {
@@ -168,7 +197,7 @@ export default function ReferenceTypePage() {
                     {items.length} {typeLabel}
                 </span>
                 <button
-                    onClick={() => { setIsCreating(true); setNewName(''); }}
+                    onClick={() => { setIsCreating(true); setNewName(''); setNewIndustryId(''); }}
                     disabled={isCreating}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                 >
@@ -189,15 +218,27 @@ export default function ReferenceTypePage() {
                         autoFocus
                         className="flex-1 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                    {type === 'categories' && (
+                        <select
+                            value={newIndustryId}
+                            onChange={(e) => setNewIndustryId(e.target.value)}
+                            className="border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent flex-1"
+                        >
+                            <option value="">Select Industry</option>
+                            {industries.map(ind => (
+                                <option key={ind.id} value={ind.id}>{ind.name}</option>
+                            ))}
+                        </select>
+                    )}
                     <button
                         onClick={handleCreate}
-                        disabled={actionLoading || !newName.trim()}
+                        disabled={actionLoading || !newName.trim() || (type === 'categories' && !newIndustryId)}
                         className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors disabled:opacity-50"
                     >
                         <Save className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => { setIsCreating(false); setNewName(''); }}
+                        onClick={() => { setIsCreating(false); setNewName(''); setNewIndustryId(''); }}
                         className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                     >
                         <X className="w-4 h-4" />
@@ -228,15 +269,27 @@ export default function ReferenceTypePage() {
                                         autoFocus
                                         className="flex-1 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     />
+                                    {type === 'categories' && (
+                                        <select
+                                            value={editIndustryId}
+                                            onChange={(e) => setEditIndustryId(e.target.value)}
+                                            className="border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent flex-1"
+                                        >
+                                            <option value="">Select Industry</option>
+                                            {industries.map(ind => (
+                                                <option key={ind.id} value={ind.id}>{ind.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
                                     <button
                                         onClick={() => handleUpdate(item.id)}
-                                        disabled={actionLoading || !editName.trim()}
+                                        disabled={actionLoading || !editName.trim() || (type === 'categories' && !editIndustryId)}
                                         className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors disabled:opacity-50"
                                     >
                                         <Save className="w-4 h-4" />
                                     </button>
                                     <button
-                                        onClick={() => { setEditId(null); setEditName(''); }}
+                                        onClick={() => { setEditId(null); setEditName(''); setEditIndustryId(''); }}
                                         className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                                     >
                                         <X className="w-4 h-4" />
@@ -244,9 +297,18 @@ export default function ReferenceTypePage() {
                                 </>
                             ) : (
                                 <>
-                                    <span className="flex-1 text-sm text-slate-900 dark:text-white">{item.name}</span>
+                                    <div className="flex-1 flex flex-col">
+                                        <span className="text-sm text-slate-900 dark:text-white">{item.name}</span>
+                                        {type === 'categories' && item.industry && (
+                                            <span className="text-xs text-slate-500 font-medium tracking-wide opacity-80 mt-0.5">{item.industry.name}</span>
+                                        )}
+                                    </div>
                                     <button
-                                        onClick={() => { setEditId(item.id); setEditName(item.name); }}
+                                        onClick={() => {
+                                            setEditId(item.id);
+                                            setEditName(item.name);
+                                            setEditIndustryId(item.industry_id ? String(item.industry_id) : '');
+                                        }}
                                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
                                         title="Edit"
                                     >

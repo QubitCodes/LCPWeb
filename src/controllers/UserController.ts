@@ -10,6 +10,10 @@ export class UserController {
     const { role, company_id } = query;
     const whereClause: any = {};
 
+    if (company_id) {
+      whereClause.company_id = company_id;
+    }
+
     // Role Filtering & Security
     if (actor?.role !== 'SUPER_ADMIN') {
       if (role) {
@@ -133,6 +137,7 @@ export class UserController {
       if (data.last_name) updateData.last_name = data.last_name;
       if (data.email) updateData.email = data.email; // Should check uniqueness if changed
       if (data.role) updateData.role = data.role;
+      if (data.status) updateData.status = data.status;
       if (data.phone_number) updateData.phone_number = data.phone_number;
 
       await user.update(updateData);
@@ -155,6 +160,65 @@ export class UserController {
 
     } catch (error: any) {
       console.error('Update User Error:', error);
+      return { success: false, message: error.message, code: 300 };
+    }
+  }
+
+  static async getById(id: string, actor: any) {
+    try {
+      const user = await (User as any).findByPk(id, {
+        include: [
+          {
+            model: Company,
+            as: 'company',
+            attributes: ['id', 'name']
+          }
+        ],
+        attributes: { exclude: ['password_hash', 'deleted_at'] }
+      });
+
+      if (!user) {
+        return { success: false, message: 'User not found', code: 310 };
+      }
+
+      return { success: true, data: user, code: 100 };
+    } catch (error: any) {
+      console.error('Get User Error:', error);
+      return { success: false, message: error.message, code: 300 };
+    }
+  }
+
+  static async delete(id: string, actor: any) {
+    try {
+      const user = await (User as any).findByPk(id);
+      if (!user) {
+        return { success: false, message: 'User not found', code: 310 };
+      }
+
+      // Check if trying to delete self
+      if (user.id === actor?.id) {
+        return { success: false, message: 'Cannot delete yourself', code: 400 };
+      }
+
+      // Instead of an actual DB delete, apply a soft delete based on instructions
+      await user.update({
+        deleted_at: new Date(),
+        delete_reason: 'Deleted by Admin'
+      });
+
+      // Log action
+      await AuditService.log({
+        userId: actor?.id || 'system',
+        action: 'DELETE_USER',
+        entityType: 'USER',
+        entityId: id,
+        details: { role: user.role, email: user.email },
+        ipAddress: '0.0.0.0'
+      });
+
+      return { success: true, message: 'User deleted successfully', code: 100 };
+    } catch (error: any) {
+      console.error('Delete User Error:', error);
       return { success: false, message: error.message, code: 300 };
     }
   }

@@ -25,6 +25,11 @@ export class JobController {
         name: data.name,
         category_id: data.category_id
       }, { transaction: t });
+      
+      // Force reload to get the auto-increment ID if missing from memory
+      await job.reload({ transaction: t });
+
+
 
       // 2. Create corresponding Course (1:1)
       const course = await Course.create({

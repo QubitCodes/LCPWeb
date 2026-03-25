@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useHeader } from '@/components/HeaderContext';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ClipboardList, Brain, Loader2, AlertTriangle } from 'lucide-react';
 import SurveyRenderer from '@/components/survey/SurveyRenderer';
 import SignoffPanel from '@/components/survey/SignoffPanel';
@@ -11,6 +11,8 @@ import SignoffPanel from '@/components/survey/SignoffPanel';
 interface ResponseData {
 	id: string;
 	status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED';
+	company_id: string;
+	site_id: string | null;
 	template: {
 		id: string;
 		name: string;
@@ -29,6 +31,7 @@ export default function SurveyFillPage() {
 	const { setTitle, setActions } = useHeader();
 	const router = useRouter();
 	const params = useParams();
+	const searchParams = useSearchParams();
 	const responseId = params.responseId as string;
 
 	const [data, setData] = useState<ResponseData | null>(null);
@@ -36,9 +39,9 @@ export default function SurveyFillPage() {
 	const [error, setError] = useState<string | null>(null);
 
 	/** Fetch response with template structure */
-	const fetchResponse = useCallback(async () => {
+	const fetchResponse = useCallback(async (showLoader = true) => {
 		try {
-			setLoading(true);
+			if (showLoader) setLoading(true);
 			setError(null);
 			const token = localStorage.getItem('token');
 			const res = await fetch(`/api/v1/surveys/responses/${responseId}`, {
@@ -54,11 +57,11 @@ export default function SurveyFillPage() {
 			console.error('Fetch Error:', err);
 			setError('Network error');
 		} finally {
-			setLoading(false);
+			if (showLoader) setLoading(false);
 		}
 	}, [responseId]);
 
-	useEffect(() => { fetchResponse(); }, [fetchResponse]);
+	useEffect(() => { fetchResponse(true); }, [fetchResponse]);
 
 	// Set header
 	useEffect(() => {
@@ -148,9 +151,11 @@ export default function SurveyFillPage() {
 				existingAnswers={data.answers || []}
 				status={data.status}
 				isQuiz={isQuiz}
-				onSaved={fetchResponse}
+				contextCompanyId={data.company_id}
+				urlParams={searchParams}
+				onSaved={() => fetchResponse(false)}
 				onCompleted={() => {
-					fetchResponse();
+					fetchResponse(true);
 				}}
 			/>
 

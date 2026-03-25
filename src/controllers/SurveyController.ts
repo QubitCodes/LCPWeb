@@ -995,6 +995,23 @@ export class SurveyController {
 			return { success: false, message: 'Failed to list signoffs', code: 300 };
 		}
 	}
+
+	/**
+	 * Delete a survey response.
+	 */
+	static async deleteResponse(responseId: string) {
+		try {
+			const response = await SurveyResponse.findByPk(responseId);
+			if (!response) {
+				return { success: false, message: 'Response not found', code: 310 };
+			}
+			await response.destroy();
+			return { success: true, message: 'Survey response deleted successfully', code: 100 };
+		} catch (error) {
+			console.error('Delete Response Error:', error);
+			return { success: false, message: 'Failed to delete survey response', code: 300 };
+		}
+	}
 }
 
 // ─── In-memory OTP store (use Redis in production) ───────────

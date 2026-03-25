@@ -16,7 +16,9 @@ import { Company, CompanySite, Course, Job, User } from '@/models';
  *         required: true
  *         schema:
  *           type: string
- *           enum: [COMPANY, SITE, COURSE, JOB, USER]
+ *       - in: query
+ *         name: id
+ *         schema: { type: string }
  *       - in: query
  *         name: company_id
  *         schema: { type: string }
@@ -39,8 +41,11 @@ export async function GET(req: NextRequest) {
 		const entityType = searchParams.get('type')?.toUpperCase();
 		const companyId = searchParams.get('company_id');
 		const siteId = searchParams.get('site_id');
+		const id = searchParams.get('id');
 		const role = searchParams.get('role');
 		const courseId = searchParams.get('course_id');
+
+		const isValidUuid = (uuid: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid);
 
 		if (!entityType) {
 			return sendResponse(400, Response.error(
@@ -54,41 +59,48 @@ export async function GET(req: NextRequest) {
 		switch (entityType) {
 			case 'COMPANY': {
 				const where: any = { status: 'ACTIVE' };
+				if (id && isValidUuid(id)) where.id = id;
 				const rows = await Company.findAll({
 					where,
 					attributes: ['id', 'name'],
 					order: [['name', 'ASC']],
+					raw: true,
 				});
-				data = rows.map(r => ({ id: r.id.toString(), label: r.name }));
+				data = rows.map((r: any) => ({ id: String(r.id), label: r.name }));
 				break;
 			}
 
 			case 'SITE': {
 				const where: any = { status: 'ACTIVE' };
-				if (companyId) where.company_id = companyId;
+				if (id && isValidUuid(id)) where.id = id;
+				if (companyId && isValidUuid(companyId)) where.company_id = companyId;
 				const rows = await CompanySite.findAll({
 					where,
 					attributes: ['id', 'name'],
 					order: [['name', 'ASC']],
+					raw: true,
 				});
-				data = rows.map(r => ({ id: r.id.toString(), label: r.name }));
+				data = rows.map((r: any) => ({ id: String(r.id), label: r.name }));
 				break;
 			}
 
 			case 'COURSE': {
 				const where: any = { is_active: true };
+				if (id && isValidUuid(id)) where.id = id;
 				const rows = await Course.findAll({
 					where,
 					attributes: ['id', 'title'],
 					order: [['title', 'ASC']],
+					raw: true,
 				});
-				data = rows.map(r => ({ id: r.id.toString(), label: (r as any).title }));
+				data = rows.map((r: any) => ({ id: String(r.id), label: r.title || r.name }));
 				break;
 			}
 
 			case 'JOB': {
 				const where: any = {};
-				if (courseId) {
+				if (id && isValidUuid(id)) where.id = id;
+				if (courseId && isValidUuid(courseId)) {
 					/** Jobs linked to a specific course — find the course's job_id */
 					const course = await Course.findByPk(courseId, { attributes: ['job_id'] });
 					if (course) {
@@ -99,22 +111,25 @@ export async function GET(req: NextRequest) {
 					where,
 					attributes: ['id', 'name'],
 					order: [['name', 'ASC']],
+					raw: true,
 				});
-				data = rows.map(r => ({ id: r.id.toString(), label: r.name }));
+				data = rows.map((r: any) => ({ id: String(r.id), label: r.name }));
 				break;
 			}
 
 			case 'USER': {
-				const where: any = { status: 'active' };
-				if (companyId) where.company_id = companyId;
+				const where: any = { status: 'ACTIVE' };
+				if (id && isValidUuid(id)) where.id = id;
+				if (companyId && isValidUuid(companyId)) where.company_id = companyId;
 				if (role) where.role = role;
 				const rows = await User.findAll({
 					where,
 					attributes: ['id', 'first_name', 'last_name', 'role'],
 					order: [['first_name', 'ASC'], ['last_name', 'ASC']],
+					raw: true,
 				});
-				data = rows.map(r => ({
-					id: r.id.toString(),
+				data = rows.map((r: any) => ({
+					id: String(r.id),
 					label: `${r.first_name} ${r.last_name}`,
 				}));
 				break;

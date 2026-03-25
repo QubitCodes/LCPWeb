@@ -17,8 +17,11 @@ import {
     Building2,
     Calendar,
     Shield,
-    User
+    User,
+    Edit,
+    Trash2
 } from 'lucide-react';
+import EditUserDialog from '../../../users/components/EditUserDialog';
 
 /**
  * User type for the people list.
@@ -30,7 +33,7 @@ interface Person {
     email: string;
     phone_number?: string;
     role: string;
-    is_active: boolean;
+    status: string;
     created_at: string;
 }
 
@@ -65,6 +68,25 @@ export default function CompanyPeoplePage() {
 
     /** Supervisor detail dialog state */
     const [viewSupervisor, setViewSupervisor] = useState<Person | null>(null);
+    const [editUser, setEditUser] = useState<Person | null>(null);
+
+    /** User Context for Actions */
+    const [userRole, setUserRole] = useState<string>('');
+    const [enableDelete, setEnableDelete] = useState<boolean>(true);
+
+    useEffect(() => {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                setUserRole(user.role);
+            } catch (e) {}
+        }
+        const edStr = localStorage.getItem('enableDelete');
+        if (edStr !== null) {
+            setEnableDelete(edStr !== 'false');
+        }
+    }, []);
 
     /** Fetch company info */
     useEffect(() => {
@@ -104,6 +126,26 @@ export default function CompanyPeoplePage() {
             setLoading(false);
         }
     }, [companyId, activeTab]);
+
+    /** Handle Delete Person */
+    const handleDelete = async (personId: string, personName: string) => {
+        if (!confirm(`Are you sure you want to delete ${personName}?`)) return;
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/v1/users/${personId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const json = await res.json();
+            if (json.status) {
+                fetchPeople();
+            } else {
+                alert(json.message || 'Failed to delete');
+            }
+        } catch (err) {
+            console.error('Failed to delete person:', err);
+        }
+    };
 
     useEffect(() => {
         if (companyId) fetchPeople();
@@ -151,16 +193,30 @@ export default function CompanyPeoplePage() {
             )
         },
         {
-            accessorKey: 'is_active',
+            accessorKey: 'status',
             header: 'Status',
-            cell: ({ row }) => (
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${row.original.is_active
-                    ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400'
-                    : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400'
-                    }`}>
-                    {row.original.is_active ? 'Active' : 'Inactive'}
-                </span>
-            )
+            cell: ({ row }) => {
+                const status = row.original.status;
+                let colorClass = 'bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400';
+                let label = 'Unknown';
+
+                if (status === 'ACTIVE') {
+                    colorClass = 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400';
+                    label = 'Active';
+                } else if (status === 'PENDING') {
+                    colorClass = 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400';
+                    label = 'Pending';
+                } else if (status === 'SUSPENDED' || status === 'INACTIVE') {
+                    colorClass = 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400';
+                    label = 'Inactive';
+                }
+
+                return (
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${colorClass}`}>
+                        {label}
+                    </span>
+                );
+            }
         },
         {
             accessorKey: 'created_at',
@@ -176,26 +232,49 @@ export default function CompanyPeoplePage() {
         },
         {
             id: 'actions',
-            header: '',
-            cell: ({ row }) => (
-                <button
-                    onClick={() => {
-                        if (activeTab === 'workers') {
-                            /** Navigate to worker profile with tabs */
-                            router.push(`/admin/companies/${companyId}/workers/${row.original.id}`);
-                        } else {
-                            /** Open supervisor detail dialog */
-                            setViewSupervisor(row.original);
-                        }
-                    }}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
-                    title="View Details"
-                >
-                    <Eye className="w-4 h-4" />
-                </button>
-            )
+            header: 'Actions',
+            cell: ({ row }) => {
+                const isSuperAdmin = userRole === 'SUPER_ADMIN';
+                const showDelete = isSuperAdmin && enableDelete;
+
+                return (
+                    <div className="flex justify-end gap-1">
+                        <button
+                            onClick={() => {
+                                if (activeTab === 'workers') {
+                                    router.push(`/admin/companies/${companyId}/workers/${row.original.id}`);
+                                } else {
+                                    setViewSupervisor(row.original);
+                                }
+                            }}
+                            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+                            title="View Details"
+                        >
+                            <Eye className="w-4 h-4" />
+                        </button>
+                        
+                        <button
+                            onClick={() => setEditUser(row.original)}
+                            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+                            title="Edit User"
+                        >
+                            <Edit className="w-4 h-4" />
+                        </button>
+
+                        {showDelete && (
+                            <button
+                                onClick={() => handleDelete(row.original.id, `${row.original.first_name} ${row.original.last_name}`)}
+                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                                title="Delete User"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+                );
+            }
         }
-    ], [companyId, router, activeTab]);
+    ], [companyId, router, activeTab, userRole, enableDelete, fetchPeople]);
 
     return (
         <div className="space-y-6">
@@ -220,13 +299,6 @@ export default function CompanyPeoplePage() {
                 >
                     <Users className="w-4 h-4" />
                     Workers
-                </button>
-                <button
-                    onClick={() => router.push(`/admin/companies/${companyId}/sites`)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                    <Building2 className="w-4 h-4" />
-                    Sites
                 </button>
             </div>
 
@@ -259,6 +331,14 @@ export default function CompanyPeoplePage() {
                     onClose={() => setViewSupervisor(null)}
                 />
             )}
+
+            {/* Edit User Dialog */}
+            <EditUserDialog
+                isOpen={!!editUser}
+                onClose={() => setEditUser(null)}
+                onSuccess={fetchPeople}
+                user={editUser as any}
+            />
         </div>
     );
 }
@@ -319,8 +399,8 @@ function SupervisorDetailDialog({
                         <InfoRow
                             icon={Shield}
                             label="Status"
-                            value={supervisor.is_active ? 'Active' : 'Inactive'}
-                            valueColor={supervisor.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
+                            value={supervisor.status === 'ACTIVE' ? 'Active' : (supervisor.status === 'PENDING' ? 'Pending' : 'Inactive')}
+                            valueColor={supervisor.status === 'ACTIVE' ? 'text-green-600 dark:text-green-400' : (supervisor.status === 'PENDING' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400')}
                         />
                         <InfoRow
                             icon={Calendar}

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const jobSchema = z.object({
   name: z.string().min(2),
-  category_id: z.string().uuid(),
+  category_id: z.coerce.number().int().positive(),
   description: z.string().optional(),
   skills: z.array(z.object({
     skill_id: z.string().uuid(),
@@ -17,13 +17,22 @@ const jobSchema = z.object({
 });
 
 export async function GET() {
-  const result = await JobController.list();
-  return sendResponse(200, {
-    status: true,
-    message: 'Jobs list',
-    code: RESPONSE_CODES.OK,
-    data: result.data
-  });
+  try {
+    const result = await JobController.list();
+    return sendResponse(200, {
+      status: true,
+      message: 'Jobs list',
+      code: RESPONSE_CODES.OK,
+      data: result.data
+    });
+  } catch (error: any) {
+    console.error('Job APIs GET Error:', error);
+    return sendResponse(500, {
+      status: false,
+      message: `Failed to fetch jobs: ${error.message}`,
+      code: RESPONSE_CODES.GENERAL_SERVER_ERROR
+    });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -56,11 +65,11 @@ export async function POST(req: NextRequest) {
       data: result.data
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
     return sendResponse(500, {
       status: false,
-      message: 'Internal Server Error',
+      message: `Internal Server Error: ${error.message}`,
       code: RESPONSE_CODES.GENERAL_SERVER_ERROR
     });
   }

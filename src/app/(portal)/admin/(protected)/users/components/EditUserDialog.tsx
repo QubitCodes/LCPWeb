@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Loader2, User, Mail, Shield, Save } from 'lucide-react';
+import { X, Loader2, User as UserIcon, Mail, Shield, Save, Activity } from 'lucide-react';
 
 // Schema Validation
 const editUserSchema = z.object({
     first_name: z.string().min(2, 'First name is required'),
     last_name: z.string().min(2, 'Last name is required'),
     email: z.string().email('Invalid email address'),
-    role: z.enum(['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'WORKER'])
+    role: z.enum(['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'WORKER']),
+    status: z.enum(['ACTIVE', 'PENDING', 'SUSPENDED'])
 });
 
 type EditUserFormData = z.infer<typeof editUserSchema>;
@@ -22,6 +23,7 @@ interface User {
     last_name: string;
     email: string;
     role: string;
+    status: string;
 }
 
 interface EditUserDialogProps {
@@ -45,7 +47,8 @@ export default function EditUserDialog({ isOpen, onClose, onSuccess, user }: Edi
             first_name: '',
             last_name: '',
             email: '',
-            role: 'WORKER'
+            role: 'WORKER',
+            status: 'ACTIVE'
         }
     });
 
@@ -55,7 +58,8 @@ export default function EditUserDialog({ isOpen, onClose, onSuccess, user }: Edi
                 first_name: user.first_name,
                 last_name: user.last_name,
                 email: user.email,
-                role: user.role as any
+                role: user.role as any,
+                status: (user.status || 'ACTIVE') as any
             });
         }
     }, [user, isOpen, reset]);
@@ -116,7 +120,7 @@ export default function EditUserDialog({ isOpen, onClose, onSuccess, user }: Edi
                 <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
                     <div>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <User className="w-5 h-5 text-blue-600" />
+                            <UserIcon className="w-5 h-5 text-blue-600" />
                             Edit User
                         </h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">Update details for <span className="font-medium text-slate-900 dark:text-white">{user.first_name}</span></p>
@@ -141,7 +145,7 @@ export default function EditUserDialog({ isOpen, onClose, onSuccess, user }: Edi
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name <span className="text-red-500">*</span></label>
                                 <div className="relative">
-                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                     <input
                                         {...register('first_name')}
                                         className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-400"
@@ -172,21 +176,39 @@ export default function EditUserDialog({ isOpen, onClose, onSuccess, user }: Edi
                             {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role <span className="text-red-500">*</span></label>
-                            <div className="relative">
-                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <select
-                                    {...register('role')}
-                                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
-                                >
-                                    <option value="WORKER">Worker</option>
-                                    <option value="SUPERVISOR">Supervisor</option>
-                                    <option value="ADMIN">Admin</option>
-                                    <option value="SUPER_ADMIN">Super Admin</option>
-                                </select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role <span className="text-red-500">*</span></label>
+                                <div className="relative">
+                                    <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <select
+                                        {...register('role')}
+                                        className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
+                                    >
+                                        <option value="WORKER">Worker</option>
+                                        <option value="SUPERVISOR">Supervisor</option>
+                                        <option value="ADMIN">Admin</option>
+                                        <option value="SUPER_ADMIN">Super Admin</option>
+                                    </select>
+                                </div>
+                                {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>}
                             </div>
-                            {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>}
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status <span className="text-red-500">*</span></label>
+                                <div className="relative">
+                                    <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <select
+                                        {...register('status')}
+                                        className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
+                                    >
+                                        <option value="ACTIVE">Active</option>
+                                        <option value="PENDING">Pending</option>
+                                        <option value="SUSPENDED">Suspended</option>
+                                    </select>
+                                </div>
+                                {errors.status && <p className="mt-1 text-xs text-red-500">{errors.status.message}</p>}
+                            </div>
                         </div>
 
                     </form>

@@ -276,22 +276,7 @@ export default function CompanySitesPage() {
 
 	return (
 		<div className="space-y-6">
-			{/* Navigation tabs — link to People and Sites */}
-			<div className="flex gap-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-1 w-fit">
-				<button
-					onClick={() => router.push(`/admin/companies/${companyId}/people`)}
-					className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-				>
-					<Building2 className="w-4 h-4" />
-					People
-				</button>
-				<button
-					className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all bg-emerald-600 text-white shadow-sm"
-				>
-					<MapPin className="w-4 h-4" />
-					Sites
-				</button>
-			</div>
+
 
 			{/* Table */}
 			{loading ? (

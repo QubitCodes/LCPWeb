@@ -54,6 +54,10 @@ import SurveySignoff from './SurveySignoff';
 (Job as any).belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 (Category as any).hasMany(Job, { foreignKey: 'category_id', as: 'jobs' });
 
+// Industry <-> Category
+(Category as any).belongsTo(Industry, { foreignKey: 'industry_id', as: 'industry' });
+(Industry as any).hasMany(Category, { foreignKey: 'industry_id', as: 'categories' });
+
 // Job <-> Course
 (Course as any).belongsTo(Job, { foreignKey: 'job_id', as: 'job' });
 (Job as any).hasOne(Course, { foreignKey: 'job_id', as: 'course' });

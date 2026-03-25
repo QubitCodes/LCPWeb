@@ -56,8 +56,10 @@ export default function WorkerProfileLayout({ children }: { children: React.Reac
     }, [setTitle, setActions, companyId, router]);
 
     return (
-        <VerticalTabLayout tabs={tabs} sectionTitle="Worker Profile">
-            {children}
-        </VerticalTabLayout>
+        <div className="p-3 md:p-4">
+            <VerticalTabLayout tabs={tabs} sectionTitle="Worker Profile">
+                {children}
+            </VerticalTabLayout>
+        </div>
     );
 }

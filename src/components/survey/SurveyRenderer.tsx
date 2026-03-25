@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import {
 	ChevronDown,
 	ChevronRight,
@@ -12,6 +12,7 @@ import {
 	Loader2,
 	Upload,
 	X,
+	Eraser,
 } from 'lucide-react';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 
@@ -62,6 +63,10 @@ interface SurveyRendererProps {
 	status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED';
 	/** Whether this is a quiz (shows points) */
 	isQuiz?: boolean;
+	/** Optional prefilled company ID from the response context */
+	contextCompanyId?: string;
+	/** Generic URL search params for prefilling */
+	urlParams?: any;
 	/** Preview mode: interactive form but no save/submit actions */
 	previewMode?: boolean;
 	/** Callback after successful save */
@@ -91,6 +96,8 @@ export default function SurveyRenderer({
 	existingAnswers,
 	status,
 	isQuiz = false,
+	contextCompanyId,
+	urlParams,
 	previewMode = false,
 	onSaved,
 	onCompleted,
@@ -137,19 +144,30 @@ export default function SurveyRenderer({
 
 
 		// Auto-fill default_today DATE fields if not already answered
+		// Auto-fill COMPANY questions if contexts exists
 		const todayStr = new Date().toISOString().slice(0, 10);
 		sections.forEach(sec => {
 			sec.questions.forEach(q => {
+				const prefillKey = q.config?.prefill_key;
+				if (prefillKey && urlParams && urlParams.has(prefillKey)) {
+					const paramVal = urlParams.get(prefillKey);
+					if (paramVal && !ansMap.has(q.id)) {
+						ansMap.set(q.id, { answer_text: paramVal, answer_json: null });
+					}
+				}
+
 				if (q.type === 'DATE' && q.config?.default_today && !ansMap.has(q.id)) {
 					ansMap.set(q.id, { answer_text: todayStr, answer_json: null });
+				}
+				if (q.type === 'DATA_SELECT' && q.config?.entity_type === 'COMPANY' && contextCompanyId && !ansMap.has(q.id)) {
+					ansMap.set(q.id, { answer_text: contextCompanyId, answer_json: null });
 				}
 			});
 		});
 		setAnswers(ansMap);
 
-		// Expand all sections by default
 		setExpandedSections(new Set(sections.map(s => s.id)));
-	}, [existingAnswers, responseId, sections, previewMode]);
+	}, [existingAnswers, responseId, sections, previewMode, contextCompanyId || null, urlParams?.toString() || '']);
 
 	// ── Save to localStorage on every change ──
 
@@ -287,8 +305,7 @@ export default function SurveyRenderer({
 		});
 	};
 
-	// ── Count answered questions per section ──
-
+	// ── count answered questions per section ──
 	const sectionProgress = (section: SectionT) => {
 		const total = section.questions.length;
 		const answered = section.questions.filter(q => {
@@ -297,6 +314,24 @@ export default function SurveyRenderer({
 		}).length;
 		return { total, answered };
 	};
+
+	// ── Find currently selected company to cascade dropdowns ──
+	const getSelectedCompanyId = () => {
+		for (const sec of sections) {
+			for (const q of sec.questions) {
+				if (q.type === 'DATA_SELECT' && q.config?.entity_type === 'COMPANY') {
+					const ans = answers.get(q.id);
+					if (ans && ans.answer_text) return ans.answer_text;
+				}
+			}
+		}
+		return contextCompanyId || null;
+	};
+	const activeCompanyId = getSelectedCompanyId();
+
+	// ── Dynamic Disabled Fields (from URL param `readonly=key1,key2` or `disable=key1,key2`)
+	const readonlyParam = (urlParams?.get('readonly') || urlParams?.get('disable') || '') as string;
+	const readonlyKeys = new Set(readonlyParam.split(',').map(k => k.trim()).filter(Boolean));
 
 	// ─── Render ──────────────────────────────────────────────
 
@@ -396,17 +431,26 @@ export default function SurveyRenderer({
 										grouped[grouped.length - 1].questions.push({ q, idx: qIdx });
 									});
 									return grouped.map((g, gIdx) => {
-										const questionElements = g.questions.map(({ q, idx }) => (
-											<QuestionRenderer
-												key={q.id}
-												question={q}
-												index={idx + 1}
-												answer={answers.get(q.id) || null}
-												onAnswer={(text, json) => setAnswer(q.id, text, json)}
-												disabled={isCompleted}
-												isQuiz={isQuiz}
-											/>
-										));
+										const questionElements = g.questions.map(({ q, idx }) => {
+											const prefillKey = q.config?.prefill_key;
+											const isUrlDisabled = prefillKey ? readonlyKeys.has(prefillKey) : false;
+											const isConfigReadonly = Boolean(prefillKey && urlParams?.has(prefillKey) && q.config?.readonly_if_prefilled);
+											const isFieldDisabled = isCompleted || isUrlDisabled || isConfigReadonly;
+
+											return (
+												<QuestionRenderer
+													key={q.id}
+													question={q}
+													index={idx + 1}
+													answer={answers.get(q.id) || null}
+													onAnswer={(text, json) => setAnswer(q.id, text, json)}
+													disabled={isFieldDisabled}
+													isQuiz={isQuiz}
+													activeCompanyId={activeCompanyId}
+												/>
+											);
+										});
+
 										if (g.groupName) {
 											return (
 												<div key={`grp-${gIdx}`} className="border-t border-slate-100 dark:border-slate-800">
@@ -419,7 +463,7 @@ export default function SurveyRenderer({
 												</div>
 											);
 										}
-										return <>{questionElements}</>;
+										return <Fragment key={`grp-${gIdx}`}>{questionElements}</Fragment>;
 									});
 								})()}
 								{section.questions.length === 0 && (
@@ -442,6 +486,7 @@ interface DataSelectInputProps {
 	value: string;
 	onChange: (val: string) => void;
 	disabled: boolean;
+	activeCompanyId?: string | null;
 }
 
 /**
@@ -449,7 +494,7 @@ interface DataSelectInputProps {
  * from the /api/v1/entities endpoint based on question config.
  * Handles prefill_mode and scope_filter.
  */
-function DataSelectInput({ question, value, onChange, disabled }: DataSelectInputProps) {
+function DataSelectInput({ question, value, onChange, disabled, activeCompanyId }: DataSelectInputProps) {
 	const [options, setOptions] = useState<Array<{ value: string; label: string }>>([]);
 	const [loading, setLoading] = useState(false);
 	const cfg = question.config || {};
@@ -472,10 +517,38 @@ function DataSelectInput({ question, value, onChange, disabled }: DataSelectInpu
 					if (companyId) params.set('company_id', companyId);
 					if (siteId) params.set('site_id', siteId);
 				}
-				const res = await fetch(`/api/v1/entities?${params.toString()}`);
+
+				// Cascade filtering: restrict USER dropdown to the currently engaged company
+				if (entityType === 'USER' && activeCompanyId) {
+					params.set('company_id', activeCompanyId);
+				}
+
+				const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+				const res = await fetch(`/api/v1/entities?${params.toString()}`, {
+					headers: token ? { Authorization: `Bearer ${token}` } : {}
+				});
 				const json = await res.json();
 				if (json.status && json.data) {
-					setOptions(json.data.map((d: any) => ({ value: d.id, label: d.label })));
+					let fetchedOptions = json.data.map((d: any) => ({ value: d.id, label: d.label }));
+
+					// If we have a selected value but it's not in the fetched global list (e.g. pagination / heavy scoping)
+					// We must fetch its label explicitly to display it.
+					if (value && !fetchedOptions.find((o: any) => o.value === value)) {
+						try {
+							const fallbackRes = await fetch(`/api/v1/entities?type=${entityType}&id=${value}`, {
+								headers: token ? { Authorization: `Bearer ${token}` } : {}
+							});
+							const fallbackJson = await fallbackRes.json();
+							if (fallbackJson.status && fallbackJson.data && fallbackJson.data.length > 0) {
+								fetchedOptions.push({ value: fallbackJson.data[0].id, label: fallbackJson.data[0].label });
+							}
+						} catch (fallbackErr) {
+							console.error('DataSelectInput Fallback Fetch Error:', fallbackErr);
+						}
+					}
+
+					console.log(`[DataSelectInput - ${entityType}] Options Fetched:`, fetchedOptions);
+					setOptions(fetchedOptions);
 				}
 			} catch (err) {
 				console.error('[DataSelectInput] Fetch error:', err);
@@ -484,7 +557,7 @@ function DataSelectInput({ question, value, onChange, disabled }: DataSelectInpu
 			}
 		};
 		fetchEntities();
-	}, [entityType, cfg.scope_filter]);
+	}, [entityType, cfg.scope_filter, activeCompanyId]);
 
 	if (!entityType) {
 		return <span className="text-xs text-slate-400 italic">No entity type configured</span>;
@@ -511,9 +584,6 @@ function DataSelectInput({ question, value, onChange, disabled }: DataSelectInpu
 			{isReadOnly && value && (
 				<span className="text-[10px] text-amber-500 mt-1 block">🔒 Read-only (pre-filled)</span>
 			)}
-			{prefillMode === 'EDITABLE' && value && (
-				<span className="text-[10px] text-blue-400 mt-1 block">✏️ Pre-filled — you may change this</span>
-			)}
 		</div>
 	);
 }
@@ -527,9 +597,10 @@ interface QuestionRendererProps {
 	onAnswer: (text: string | null, json?: any | null) => void;
 	disabled: boolean;
 	isQuiz: boolean;
+	activeCompanyId?: string | null;
 }
 
-function QuestionRenderer({ question, index, answer, onAnswer, disabled, isQuiz }: QuestionRendererProps) {
+function QuestionRenderer({ question, index, answer, onAnswer, disabled, isQuiz, activeCompanyId }: QuestionRendererProps) {
 	const ansText = answer?.answer_text || '';
 	const ansJson = answer?.answer_json;
 	const isAnswered = Boolean(ansText || ansJson);
@@ -540,10 +611,22 @@ function QuestionRenderer({ question, index, answer, onAnswer, disabled, isQuiz 
 			<div className="flex items-start gap-2 mb-3">
 				<span className="text-xs font-mono text-slate-400 mt-0.5 w-6 text-right flex-shrink-0">{index}.</span>
 				<div className="flex-1">
-					<p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-						{question.text}
-						{question.is_required && <span className="text-red-500 ml-0.5">*</span>}
-					</p>
+					<div className="flex items-start justify-between">
+						<p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+							{question.text}
+							{question.is_required && <span className="text-red-500 ml-0.5">*</span>}
+						</p>
+						{isAnswered && !disabled && (
+							<button
+								type="button"
+								onClick={() => onAnswer(null, null)}
+								className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ml-4"
+								title="Erase / Reset this field"
+							>
+								<Eraser className="w-4 h-4" />
+							</button>
+						)}
+					</div>
 					{isQuiz && question.points > 0 && (
 						<span className="text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 px-1.5 py-0.5 rounded mt-1 inline-block">
 							{question.points} points
@@ -747,6 +830,7 @@ function QuestionRenderer({ question, index, answer, onAnswer, disabled, isQuiz 
 						value={ansText}
 						onChange={(val) => onAnswer(val)}
 						disabled={disabled}
+						activeCompanyId={activeCompanyId}
 					/>
 				)}
 			</div>

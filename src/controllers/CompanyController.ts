@@ -57,6 +57,28 @@ export class CompanyController {
     });
   }
 
+  // Added by Agent to force HMR rebuild
+  static async getById(id: string): Promise<ServiceResponse> {
+    try {
+      if (!sequelize) {
+        throw new Error('Sequelize instance is undefined.');
+      }
+
+      const company = await (Company as any).findByPk(id, {
+        include: [{ model: sequelize.models.Industry, as: 'industry', attributes: ['id', 'name'], required: false }]
+      });
+
+      if (!company) {
+        return { status: false, message: 'Company not found', code: 310, data: null };
+      }
+
+      return Response.success(company, 'Company retrieved successfully', RESPONSE_CODES.OK);
+    } catch (error: any) {
+      console.error('Get Company Error:', error);
+      return { status: false, message: error.message, code: 300, data: null };
+    }
+  }
+
   static async create(data: any, actorId: string, ip: string): Promise<ServiceResponse> {
     // Generate 6-digit company_id
     const generated_id = Math.floor(100000 + Math.random() * 900000).toString();

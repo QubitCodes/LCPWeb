@@ -4,6 +4,7 @@ import sequelize from '../lib/sequelize';
 interface CategoryAttributes {
   id: number;
   name: string;
+  industry_id?: number;
   description?: string;
   created_at?: Date;
   updated_at?: Date;
@@ -15,6 +16,7 @@ interface CategoryCreationAttributes extends Optional<CategoryAttributes, 'id'> 
 class Category extends Model<CategoryAttributes, CategoryCreationAttributes> implements CategoryAttributes {
   public id!: number;
   public name!: string;
+  public industry_id!: number;
   public description!: string;
 
   public readonly created_at!: Date;
@@ -31,6 +33,10 @@ class Category extends Model<CategoryAttributes, CategoryCreationAttributes> imp
     },
     name: {
       type: DataTypes.STRING,
+      allowNull: false,
+    },
+    industry_id: {
+      type: DataTypes.INTEGER,
       allowNull: false,
     },
     description: {
