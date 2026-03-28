@@ -1,4 +1,4 @@
-import { Job, Course, JobSkill, Skill, Category, CourseLevel } from '../models';
+import { Job, Course, JobSkill, Skill, Category, CourseLevel, Industry } from '../models';
 import sequelize from '../lib/sequelize';
 import { AuditService } from '../services/AuditService';
 
@@ -14,6 +14,22 @@ export class JobController {
       order: [['created_at', 'DESC']]
     });
     return { success: true, data: jobs, code: 100 };
+  }
+
+  static async getDetails(id: string) {
+    const job = await Job.findByPk(id, {
+      include: [
+        { 
+          model: Category, 
+          as: 'category',
+          include: [{ model: Industry, as: 'industry' }]
+        },
+        { model: Course, as: 'course' },
+        { model: Skill, as: 'skills', through: { attributes: ['difficulty_level'] } }
+      ]
+    });
+    if (!job) return { success: false, message: 'Job not found', code: 310 };
+    return { success: true, data: job, code: 100 };
   }
 
   static async create(data: any, actorId: string, ip: string) {
@@ -91,27 +107,54 @@ export class JobController {
   }
 
   static async update(id: string, data: any, actorId: string) {
+    const t = await sequelize.transaction();
     try {
-      const job = await Job.findByPk(id);
-      if (!job) return { success: false, message: 'Job not found', code: 310 };
+      const job = await Job.findByPk(id, { transaction: t });
+      if (!job) {
+        await t.rollback();
+        return { success: false, message: 'Job not found', code: 310 };
+      }
 
       await job.update({
-        name: data.name,
-        category_id: data.category_id
-      });
+        name: data.name !== undefined ? data.name : job.name,
+        category_id: data.category_id !== undefined ? data.category_id : job.category_id
+      }, { transaction: t });
+
+      // Update Skills if provided
+      if (data.skills && Array.isArray(data.skills)) {
+        const castedJobId = parseInt(id, 10);
+        // Destroy existing mapped skills safely
+        await JobSkill.destroy({ where: { job_id: castedJobId }, transaction: t });
+        
+        // Recreate them based on the new explicit order
+        for (const s of data.skills) {
+          let diffLevel = 'BASIC';
+          if (s.level?.toUpperCase().includes('INTERMEDIATE')) diffLevel = 'INTERMEDIATE';
+          if (s.level?.toUpperCase().includes('ADVANCED')) diffLevel = 'ADVANCED';
+          
+          await JobSkill.create({
+            job_id: castedJobId,
+            skill_id: s.skill_id,
+            difficulty_level: diffLevel as 'BASIC' | 'INTERMEDIATE' | 'ADVANCED'
+          }, { transaction: t });
+        }
+      }
+
+      await t.commit();
 
       // Log
       await AuditService.log({
         userId: actorId,
         action: 'UPDATE_JOB',
         entityType: 'JOB',
-        entityId: job.id.toString(),
-        details: { name: data.name, category: Number(data.category_id) },
+        entityId: id.toString(),
+        details: { name: job.name, category: Number(job.category_id), skillsUpdated: !!data.skills },
         ipAddress: '0.0.0.0'
       });
 
       return { success: true, message: 'Job updated', data: job, code: 103 };
     } catch (error: any) {
+      try { await t.rollback(); } catch(e) {}
       console.error('Update Job Error:', error);
       return { success: false, message: error.message, code: 300 };
     }

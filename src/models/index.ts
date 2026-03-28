@@ -30,6 +30,7 @@ import SurveyQuestionOption from './SurveyQuestionOption';
 import SurveyResponse from './SurveyResponse';
 import SurveyAnswer from './SurveyAnswer';
 import SurveySignoff from './SurveySignoff';
+import SystemSetting from './SystemSetting';
 
 // =============================================================
 // DEFINING ASSOCIATIONS CENTRALLY
@@ -220,7 +221,8 @@ const models = {
   SurveyQuestionOption,
   SurveyResponse,
   SurveyAnswer,
-  SurveySignoff
+  SurveySignoff,
+  SystemSetting
 };
 
 export {
@@ -255,7 +257,8 @@ export {
   SurveyQuestionOption,
   SurveyResponse,
   SurveyAnswer,
-  SurveySignoff
+  SurveySignoff,
+  SystemSetting
 };
 
 export default models;

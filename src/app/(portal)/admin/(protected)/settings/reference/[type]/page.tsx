@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { Plus, Pencil, Trash2, Save, X, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Pencil, Trash2, Save, X, Loader2, Eye } from 'lucide-react';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useToast } from '@/components/ui/Toast';
 
@@ -303,6 +304,15 @@ export default function ReferenceTypePage() {
                                             <span className="text-xs text-slate-500 font-medium tracking-wide opacity-80 mt-0.5">{item.industry.name}</span>
                                         )}
                                     </div>
+                                    {type === 'industries' && (
+                                        <Link
+                                            href={`/admin/settings/reference/industries/${item.id}`}
+                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                                            title="View Details"
+                                        >
+                                            <Eye className="w-3.5 h-3.5" />
+                                        </Link>
+                                    )}
                                     <button
                                         onClick={() => {
                                             setEditId(item.id);

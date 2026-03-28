@@ -643,35 +643,59 @@ export default function SurveyBuilderPage() {
 								</div>
 							</div>
 						</div>
-						<button
-							onClick={() => {
-								const next = !editingMode;
-								setEditingMode(next);
-								if (next) {
-									startEditMeta();
-								} else {
-									setEditingTemplateMeta(false);
-									// Also cancel any section edits
-									setEditingSections(new Set());
-									setEditedSectionNames({});
-									setEditedQuestions({});
-								}
-							}}
-							className={`p-2 rounded-lg transition-colors ${editingMode
-								? 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10'
-								: 'text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-								}`}
-							title={editingMode ? 'Exit edit mode' : 'Enter edit mode'}
-						>
-							<Pencil className="w-4 h-4" />
-						</button>
-						<button
-							onClick={() => window.open(`/admin/surveys/${templateId}/preview`, '_blank')}
-							className="p-2 rounded-lg transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-							title="Preview survey"
-						>
-							<Eye className="w-4 h-4" />
-						</button>
+						<div className="flex items-center gap-2">
+							{template.status !== 'ACTIVE' && (
+								<button
+									onClick={async () => {
+										if (!confirm('Are you sure you want to publish this form? It will become available for assignment.')) return;
+										setSaving(true);
+										try {
+											await apiFetch(`/api/v1/surveys/${templateId}`, {
+												method: 'PATCH',
+												body: JSON.stringify({ status: 'ACTIVE' }),
+											});
+											await fetchTemplate();
+										} finally {
+											setSaving(false);
+										}
+									}}
+									disabled={saving}
+									className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm border border-green-700"
+									title="Publish Form"
+								>
+									<Check className="w-4 h-4" /> Publish
+								</button>
+							)}
+							<button
+								onClick={() => {
+									const next = !editingMode;
+									setEditingMode(next);
+									if (next) {
+										startEditMeta();
+									} else {
+										setEditingTemplateMeta(false);
+										// Also cancel any section edits
+										setEditingSections(new Set());
+										setEditedSectionNames({});
+										setEditedQuestions({});
+									}
+								}}
+								className={`p-2 rounded-lg transition-colors ${editingMode
+									? 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10'
+									: 'text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+									}`}
+								title={editingMode ? 'Exit edit mode' : 'Enter edit mode'}
+							>
+								<Pencil className="w-4 h-4" />
+							</button>
+							<button
+								onClick={() => window.open(`/admin/surveys/${templateId}/preview`, '_blank')}
+								className="p-2 rounded-lg transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+								title="Preview survey"
+							>
+								<Eye className="w-4 h-4" />
+							</button>
+						</div>
 					</div>
 				)}
 			</div>

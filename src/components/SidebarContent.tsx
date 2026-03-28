@@ -14,7 +14,8 @@ import {
     Bell,
     X,
     BookOpen,
-    ClipboardCheck
+    ClipboardCheck,
+    FileText
 } from 'lucide-react';
 import NavItem from '@/components/sidebar/NavItem';
 import ProfileDropdown from '@/components/sidebar/ProfileDropdown';
@@ -73,7 +74,12 @@ export default function SidebarContent({ role, userName, onLogout, onClose }: Si
                         icon={LayoutDashboard}
                         label="Overview"
                         activePaths={['/admin/dashboard', '/admin/supervisor', '/admin/worker']}
+                        exact={true}
                     />
+
+                    {['SUPERVISOR', 'ADMIN_SUPERVISOR'].includes(role) && (
+                        <NavItem href="/admin/supervisor/onboarding" icon={FileText} label="Onboarding" />
+                    )}
 
                     {/* Admin Links */}
                     {isAdmin && (
@@ -86,28 +92,19 @@ export default function SidebarContent({ role, userName, onLogout, onClose }: Si
                              * The /courses route is still accessible via URL and from the Jobs page.
                              */}
                             <NavItem href="/admin/companies" icon={Briefcase} label="Companies" />
-                            {/* <NavItem href="/admin/jobs" icon={BookOpen} label="Jobs / Courses" isBeta /> */}
+                            <NavItem href="/admin/jobs" icon={BookOpen} label="Jobs / Courses" isBeta />
 
-                            {/* {role === 'SUPER_ADMIN' && (
+                            {role === 'SUPER_ADMIN' && (
                                 <>
                                     <NavItem href="/admin/payments" icon={DollarSign} label="Payments" />
                                     <NavItem href="/admin/recommendations" icon={Award} label="Approvals" />
                                 </>
-                            )} */}
+                            )}
 
                             <SectionLabel label="Settings" className="mt-6" />
 
                             <NavItem href="/admin/settings/reference" icon={Settings} label="Platform Settings" />
                             <NavItem href="/admin/surveys" icon={ClipboardCheck} label="Surveys" />
-                        </>
-                    )}
-
-                    {/* Supervisor Links */}
-                    {isSupervisor && (
-                        <>
-                            <NavItem href="/admin/supervisor/workers" icon={UserCheck} label="My Workers" />
-                            <NavItem href="/admin/supervisor/recommendations" icon={Award} label="Recommendations" />
-                            <NavItem href="/admin/enrollments" icon={CreditCard} label="Enrollments" />
                         </>
                     )}
 

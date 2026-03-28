@@ -8,6 +8,7 @@ import StatCard from './components/StatCard';
 export default function AdminDashboard() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
     const { setTitle, setActions } = useHeader();
 
     useEffect(() => {
@@ -17,6 +18,11 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            setUser(JSON.parse(userStr));
+        }
+
         fetch('/api/v1/stats', { headers: { 'Authorization': `Bearer ${token}` } })
             .then(res => res.json())
             .then(data => {
@@ -33,8 +39,42 @@ export default function AdminDashboard() {
         );
     }
 
+    const isCompanyAdmin = user?.role === 'ADMIN_SUPERVISOR';
+    const isApprovalPending = isCompanyAdmin && user?.company?.approval_status !== 'APPROVED';
+    const isOnboardingIncomplete = isCompanyAdmin && user?.company?.is_onboarding_completed === false;
+
     return (
         <div className="space-y-6">
+            {/* Alerts */}
+            {isApprovalPending && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm">
+                    <div className="flex">
+                        <div className="flex-shrink-0">
+                            <span className="text-yellow-600 font-bold">⚠️</span>
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm text-yellow-800 font-medium">
+                                Your company registration is currently pending admin approval. Some features may be restricted.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {isOnboardingIncomplete && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
+                    <div className="flex">
+                        <div className="flex-shrink-0">
+                            <span className="text-red-500 font-bold">⚠️</span>
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm text-red-800 font-medium">
+                                Your platform onboarding is incomplete. Please complete the full onboarding form to activate all features.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -10,8 +10,8 @@ import {
     ChevronDown, Search, MapPinned, Plus, Trash2, Clock, HardHat,
     ClipboardCheck
 } from 'lucide-react';
-import { auth } from '@/lib/firebaseClient';
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { useFirebaseOtp } from '@/lib/useFirebaseOtp';
+import OtpInput from '@/components/ui/OtpInput';
 
 // ========================================================
 // TYPES & CONSTANTS
@@ -169,8 +169,10 @@ function RegisterPageContent() {
     // OTP flow state
     const [otpStep, setOtpStep] = useState<'form' | 'otp'>('form');
     const [otp, setOtp] = useState('');
-    const [confirmResult, setConfirmResult] = useState<ConfirmationResult | null>(null);
-    const [resendTimer, setResendTimer] = useState(0);
+    const [isResumingRegistration, setIsResumingRegistration] = useState(false);
+
+    /** Shared Firebase OTP hook — handles reCAPTCHA, send, verify, resend, timer */
+    const firebaseOtp = useFirebaseOtp();
 
     const [formData, setFormData] = useState({
         // Supervisor (Step 0)
@@ -207,12 +209,6 @@ function RegisterPageContent() {
         fetchIndustries();
     }, []);
 
-    /** Timer for OTP resend cooldown */
-    useEffect(() => {
-        if (resendTimer <= 0) return;
-        const interval = setInterval(() => setResendTimer(prev => prev - 1), 1000);
-        return () => clearInterval(interval);
-    }, [resendTimer]);
 
     /** Generic form change handler */
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -265,22 +261,11 @@ function RegisterPageContent() {
     };
 
     // =---------------------------------------------------------
-    // OTP FLOW (Step 0 only)
+    // OTP FLOW (Step 0 only) — uses shared useFirebaseOtp hook
     // =---------------------------------------------------------
 
-    /** Create a fresh reCAPTCHA verifier */
-    const getRecaptchaVerifier = useCallback(() => {
-        const existingContainer = document.getElementById('recaptcha-container-register');
-        if (existingContainer) existingContainer.remove();
-        const newDiv = document.createElement('div');
-        newDiv.id = 'recaptcha-container-register';
-        newDiv.style.display = 'none';
-        document.body.appendChild(newDiv);
-        return new RecaptchaVerifier(auth, 'recaptcha-container-register', { size: 'invisible' });
-    }, []);
-
     /** Send OTP to supervisor's phone — pre-validates email/phone uniqueness first */
-    const sendOtp = async () => {
+    const sendOtpForRegistration = async () => {
         setLoading(true);
         setError('');
         try {
@@ -296,25 +281,42 @@ function RegisterPageContent() {
             const checkData = await checkRes.json();
 
             if (checkData.status && checkData.data) {
-                if (checkData.data.phone_exists) {
-                    setError('This phone number is already registered. Please login instead.');
-                    setLoading(false);
-                    return;
+                const existingUser = checkData.data.phone_exists ? checkData.data.phone_user : checkData.data.email_user;
+                
+                if (existingUser) {
+                    if (existingUser.onboarding_step === null) {
+                        setError('This account is already registered and onboarding is complete. Please login instead.');
+                        setLoading(false);
+                        return;
+                    } else {
+                        // User exists but onboarding is incomplete. Prepare resumption.
+                        setIsResumingRegistration(true);
+
+                        // Pre-fill user data to be safe, especially if jumping to steps 1, 2, or 3
+                        setFormData(prev => ({
+                            ...prev,
+                            supervisor_first_name: existingUser.first_name,
+                            supervisor_last_name: existingUser.last_name,
+                            supervisor_email: existingUser.email || prev.supervisor_email,
+                            company_name: existingUser.company?.name || prev.company_name,
+                        }));
+                        if (existingUser.company?.company_id) {
+                             setCompanyId(existingUser.company.company_id);
+                        }
+                    }
+                } else {
+                    setIsResumingRegistration(false);
                 }
-                if (checkData.data.email_exists) {
-                    setError('This email address is already registered. Please login instead.');
-                    setLoading(false);
-                    return;
-                }
+            } else {
+                setIsResumingRegistration(false);
             }
 
-            // 2. All clear — send Firebase OTP
-            const verifier = getRecaptchaVerifier();
+            // 2. All clear or resuming — send OTP via hook
             const fullPhone = `${formData.country_code}${formData.supervisor_phone}`;
-            const result = await signInWithPhoneNumber(auth, fullPhone, verifier);
-            setConfirmResult(result);
-            setOtpStep('otp');
-            setResendTimer(30);
+            const success = await firebaseOtp.sendOtp(fullPhone);
+            if (success) {
+                setOtpStep('otp');
+            }
         } catch (err: any) {
             console.error('OTP Error:', err);
             setError(err.message || 'Failed to send OTP. Check your phone number.');
@@ -324,41 +326,57 @@ function RegisterPageContent() {
     };
 
     /**
-     * Verify OTP → call register-supervisor API → auto-login → advance to Step 1.
+     * Verify OTP → Handle seamless login (if resuming) or call register-supervisor API (if brand new).
      */
-    const verifyOtpAndRegister = async () => {
-        if (!confirmResult) return;
+    const verifyOtpAndRegister = async (otpOverride?: string) => {
         setLoading(true);
         setError('');
         try {
-            const credential = await confirmResult.confirm(otp);
-            const idToken = await credential.user.getIdToken();
+            const finalOtp = otpOverride || otp;
+            const idToken = await firebaseOtp.verifyOtp(finalOtp);
+            if (!idToken) {
+                setLoading(false);
+                return; // Hook already set its error
+            }
 
-            // Call register-supervisor API with Firebase token + form data
-            const res = await fetch('/api/v1/auth/register-supervisor', {
+            let endpoint = '/api/v1/auth/register-supervisor';
+            let requestBody: any = {
+                idToken,
+                first_name: formData.supervisor_first_name,
+                last_name: formData.supervisor_last_name,
+                email: formData.supervisor_email,
+                country_code: formData.country_code,
+                phone: formData.supervisor_phone,
+            };
+
+            // If resuming an incomplete registration, use login API
+            if (isResumingRegistration) {
+                endpoint = '/api/v1/auth/firebase/phone';
+                requestBody = { idToken };
+            }
+
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    idToken,
-                    first_name: formData.supervisor_first_name,
-                    last_name: formData.supervisor_last_name,
-                    email: formData.supervisor_email,
-                    country_code: formData.country_code,
-                    phone: formData.supervisor_phone,
-                }),
+                body: JSON.stringify(requestBody),
             });
             const data = await res.json();
 
             if (data.status) {
-                // Store token for subsequent authenticated requests
                 localStorage.setItem('token', data.data.token);
                 localStorage.setItem('user', JSON.stringify(data.data.user));
-                // Advance to Company step
-                setActiveStep(1);
+                
+                // If resuming, jump directly to their saved step, or default to Step 1 if unsure
+                const nextStep = (isResumingRegistration && data.data.user.onboarding_step) 
+                                   ? data.data.user.onboarding_step 
+                                   : 1;
+
+                setActiveStep(nextStep);
                 setOtpStep('form');
                 setOtp('');
+                firebaseOtp.reset();
             } else {
-                setError(data.message || 'Registration failed');
+                setError(data.message || 'Verification failed');
             }
         } catch (err: any) {
             console.error('OTP Verify Error:', err);
@@ -369,19 +387,19 @@ function RegisterPageContent() {
     };
 
     /** Handle Step 0 "Continue" → triggers OTP */
-    const handleStep0Continue = () => {
+    const handleStep0Continue = (otpOverride?: string) => {
         if (otpStep === 'form') {
-            sendOtp();
+            sendOtpForRegistration();
         } else {
-            verifyOtpAndRegister();
+            verifyOtpAndRegister(otpOverride);
         }
     };
 
-    /** Resend OTP */
+    /** Resend OTP via hook */
     const handleResendOtp = async () => {
-        if (resendTimer > 0) return;
+        if (firebaseOtp.resendTimer > 0) return;
         setOtp('');
-        await sendOtp();
+        await firebaseOtp.resendOtp();
     };
 
     // =---------------------------------------------------------
@@ -517,6 +535,7 @@ function RegisterPageContent() {
             setOtpStep('form');
             setOtp('');
             setError('');
+            firebaseOtp.reset();
         } else {
             setActiveStep((prev) => prev - 1);
         }
@@ -671,11 +690,14 @@ function RegisterPageContent() {
                                 })}
                             </div>
 
+                            {/* Hidden reCAPTCHA container */}
+                            <div id={firebaseOtp.recaptchaContainerId} style={{ display: 'none' }} />
+
                             {/* Error Alert */}
-                            {error && (
+                            {(error || firebaseOtp.error) && (
                                 <div className="mb-5 bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 dark:bg-red-900/10 dark:border-red-900/20 dark:text-red-400 text-sm">
                                     <Info className="w-4 h-4 shrink-0" />
-                                    <span>{error}</span>
+                                    <span>{error || firebaseOtp.error}</span>
                                 </div>
                             )}
 
@@ -743,6 +765,12 @@ function RegisterPageContent() {
                                                             </div>
                                                             <input type="tel" name="supervisor_phone" value={formData.supervisor_phone}
                                                                 onChange={(e) => setFormData({ ...formData, supervisor_phone: e.target.value.replace(/\D/g, '') })}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' && formData.supervisor_phone.length > 5 && !loading && !firebaseOtp.sending) {
+                                                                        e.preventDefault();
+                                                                        handleStep0Continue();
+                                                                    }
+                                                                }}
                                                                 placeholder="Phone number" className={INPUT_CLASS} />
                                                         </div>
                                                     </div>
@@ -751,29 +779,33 @@ function RegisterPageContent() {
                                         ) : (
                                             <>
                                                 {/* OTP Input */}
-                                                <div className="p-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 dark:bg-blue-900/10 dark:border-blue-900/20 dark:text-blue-400 text-sm flex items-start gap-2">
-                                                    <Info className="w-4 h-4 mt-0.5 shrink-0" />
-                                                    A verification code has been sent to {formData.country_code}{formData.supervisor_phone}
+                                                <div className="flex flex-col items-center mb-6 mt-2">
+                                                    <div className="w-12 h-12 bg-blue-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-3">
+                                                        <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                                    </div>
+                                                    <h5 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Verify Phone</h5>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
+                                                        Enter the 6-digit code sent to <span className="font-semibold text-slate-700 dark:text-slate-300">{formData.country_code}{formData.supervisor_phone}</span>
+                                                    </p>
                                                 </div>
 
-                                                <div>
-                                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">
-                                                        Enter OTP
-                                                    </label>
-                                                    <div className="relative">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                            <ShieldCheck className="h-4 w-4 text-slate-400" />
-                                                        </div>
-                                                        <input type="text" value={otp}
-                                                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                                            placeholder="6-digit code" maxLength={6} className={INPUT_CLASS} />
-                                                    </div>
+                                                <div className="mb-6">
+                                                    <OtpInput 
+                                                        value={otp} 
+                                                        onChange={setOtp} 
+                                                        onComplete={(val: string) => {
+                                                            setTimeout(() => {
+                                                                if (!loading) handleStep0Continue(val);
+                                                            }, 50);
+                                                        }} 
+                                                        disabled={loading || firebaseOtp.verifying} 
+                                                    />
                                                 </div>
 
                                                 <div className="flex items-center justify-end">
-                                                    <button type="button" onClick={handleResendOtp} disabled={resendTimer > 0}
+                                                    <button type="button" onClick={handleResendOtp} disabled={firebaseOtp.resendTimer > 0}
                                                         className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition">
-                                                        {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+                                                        {firebaseOtp.resendTimer > 0 ? `Resend in ${firebaseOtp.resendTimer}s` : 'Resend OTP'}
                                                     </button>
                                                 </div>
                                             </>

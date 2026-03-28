@@ -13,7 +13,9 @@ const loginSchema = z.object({
  * @swagger
  * /api/v1/auth/login:
  *   post:
- *     description: Login user and return JWT
+ *     summary: Standard Email/Password Login
+ *     description: Authenticate user with email and password to receive a JWT Bearer token. Use this token in the header as "Authorization: Bearer <token>" for all subsequent requests.
+ *     tags: [Mobile - Auth]
  */
 export async function POST(req: NextRequest) {
   try {

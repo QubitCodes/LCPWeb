@@ -3,6 +3,54 @@ import { AuditService } from '../services/AuditService';
 
 export class CourseController {
   
+  static async create(data: any, actorId: string) {
+    const job = await Job.findByPk(data.job_id);
+    if (!job) return { success: false, message: 'Job not found', code: 404 };
+
+    // Dynamic Constraint Check
+    const { SystemSetting } = await import('../models');
+    const setting = await SystemSetting.findByPk('course.strict_job_mapping');
+    const isStrict = setting ? setting.value === true || setting.value === 'true' : true; // Default enforced
+
+    if (isStrict) {
+      const existing = await Course.findOne({ where: { job_id: data.job_id } });
+      if (existing) {
+         return { success: false, message: 'Strict Course-to-Job mapping enabled. This Job already has an active Course.', code: 205 };
+      }
+    }
+
+    const course = await Course.create({
+      job_id: data.job_id,
+      title: data.title,
+      description: data.description,
+      is_active: data.is_active !== undefined ? data.is_active : true
+    });
+
+    await AuditService.log({ userId: actorId, action: 'CREATE_COURSE', entityType: 'COURSE', entityId: course.id, details: { title: course.title, job_id: data.job_id } });
+    return { success: true, message: 'Course created', data: course, code: 101 };
+  }
+
+  static async update(id: string, data: any, actorId: string) {
+    const course = await Course.findByPk(id);
+    if (!course) return { success: false, message: 'Course not found', code: 404 };
+
+    await course.update({
+      title: data.title !== undefined ? data.title : course.title,
+      description: data.description !== undefined ? data.description : course.description,
+      is_active: data.is_active !== undefined ? data.is_active : course.is_active
+    });
+
+    await AuditService.log({
+      userId: actorId,
+      action: 'UPDATE_COURSE',
+      entityType: 'COURSE',
+      entityId: course.id,
+      details: { title: data.title, is_active: data.is_active }
+    });
+
+    return { success: true, message: 'Course updated', data: course, code: 103 };
+  }
+
   static async getDetails(courseId: string) {
     const course = await Course.findByPk(courseId, {
       include: [

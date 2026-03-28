@@ -6,8 +6,9 @@ import { sendResponse, RESPONSE_CODES } from '../../../../../utils/responseHandl
  * @swagger
  * /api/v1/auth/register-supervisor:
  *   post:
- *     summary: Step 1 — Register a new ADMIN_SUPERVISOR via Firebase OTP
- *     tags: [Auth]
+ *     summary: Register Supervisor (Post-OTP)
+ *     description: Register a brand new Supervisor profile after successfully verifying their phone number via Firebase.
+ *     tags: [Mobile - Auth]
  */
 export async function POST(req: Request) {
     try {

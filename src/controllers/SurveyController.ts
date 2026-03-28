@@ -584,7 +584,7 @@ export class SurveyController {
 	 * @param data - { template_id, site_id?, company_id }
 	 * @param respondentId - UUID of the user starting the survey
 	 */
-	static async createResponse(data: any, respondentId: string) {
+	static async createResponse(data: any, respondentId: string | null) {
 		try {
 			if (!data.template_id || !data.company_id) {
 				return { success: false, message: 'template_id and company_id are required', code: 202 };
@@ -639,8 +639,13 @@ export class SurveyController {
 
 			// Ownership check
 			if (response.respondent_id !== respondentId) {
-				await transaction.rollback();
-				return { success: false, message: 'Not authorized to edit this response', code: 212 };
+				// If respondent_id is null, claim the form for this user
+				if (!response.respondent_id) {
+					await response.update({ respondent_id: respondentId }, { transaction });
+				} else {
+					await transaction.rollback();
+					return { success: false, message: 'Not authorized to edit this response', code: 212 };
+				}
 			}
 
 			// Cannot edit a completed response
@@ -712,8 +717,12 @@ export class SurveyController {
 			}
 
 			if (response.respondent_id !== respondentId) {
-				await transaction.rollback();
-				return { success: false, message: 'Not authorized', code: 212 };
+				if (!response.respondent_id) {
+					await response.update({ respondent_id: respondentId }, { transaction });
+				} else {
+					await transaction.rollback();
+					return { success: false, message: 'Not authorized', code: 212 };
+				}
 			}
 
 			if (response.status === 'COMPLETED') {

@@ -14,13 +14,19 @@ export class ReferenceController {
   /**
    * List reference data items
    */
-  static async list(type: string) {
+  static async list(type: string, filters: any = {}) {
     const Model = modelMap[type];
     if (!Model) {
       return { success: false, message: 'Invalid reference type', code: 201 };
     }
 
+    const where: any = {};
+    if (type === 'categories' && filters.industry_id) {
+        where.industry_id = filters.industry_id;
+    }
+
     const items = await Model.findAll({
+      where,
       order: [['name', 'ASC']],
       include: type === 'categories' ? ['industry'] : undefined,
     });

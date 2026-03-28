@@ -90,8 +90,11 @@ export class AuthController {
         code: 101
       };
 
-    } catch (error) {
+    } catch (error: any) {
       await transaction.rollback();
+      if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+        return { success: false, message: error.errors[0].message, code: 201 };
+      }
       console.error('Supervisor Registration Error:', error);
       return { success: false, message: 'Registration failed', code: 300 };
     }
@@ -124,8 +127,13 @@ export class AuthController {
       // 3. Generate 6-digit Company ID
       const companyId = Math.floor(100000 + Math.random() * 900000).toString();
 
+      // Explicitly generate UUID for the new Company to ensure it's available for CompanyDetail
+      const { v4: uuidv4 } = require('uuid');
+      const newCompanyUuid = uuidv4();
+
       // 4. Create Company
       const newCompany = await (Company as any).create({
+        id: newCompanyUuid,
         name: data.company_name,
         company_id: companyId,
         industry_id: data.industry_id || null,
@@ -139,13 +147,13 @@ export class AuthController {
 
       // 5. Create CompanyDetail with onboarding_step = 2 (needs site next)
       await (CompanyDetail as any).create({
-        company_id: newCompany.id,
+        company_id: newCompanyUuid,
         onboarding_step: 2
       }, { transaction });
 
       // 6. Link user to company
       await (User as any).update(
-        { company_id: newCompany.id },
+        { company_id: newCompanyUuid },
         { where: { id: userId }, transaction }
       );
 
@@ -162,10 +170,13 @@ export class AuthController {
         code: 101
       };
 
-    } catch (error) {
+    } catch (error: any) {
       await transaction.rollback();
+      if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+        return { success: false, message: error.errors[0].message, code: 201 };
+      }
       console.error('Company Onboarding Error:', error);
-      return { success: false, message: 'Company registration failed', code: 300 };
+      return { success: false, message: `Debug: ${error.name} - ${error.message}`, code: 300 };
     }
   }
 
@@ -226,8 +237,11 @@ export class AuthController {
         code: 101
       };
 
-    } catch (error) {
+    } catch (error: any) {
       await transaction.rollback();
+      if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+        return { success: false, message: error.errors[0].message, code: 201 };
+      }
       console.error('Add Onboarding Site Error:', error);
       return { success: false, message: 'Failed to add site', code: 300 };
     }
@@ -579,7 +593,7 @@ export class AuthController {
       // Phone is unique enough within the system
       const user = await (User as any).findOne({
         where: { phone },
-        attributes: ['id', 'first_name', 'last_name', 'role', 'status', 'country_code', 'phone'],
+        attributes: ['id', 'first_name', 'last_name', 'role', 'status', 'country_code', 'phone', 'company_id'],
         include: [{
           model: Company,
           as: 'company',
@@ -588,6 +602,14 @@ export class AuthController {
       });
 
       if (user) {
+        let onboarding_step: number | null = null;
+        if (user.company_id) {
+          const detail = await (CompanyDetail as any).findOne({ where: { company_id: user.company_id } });
+          onboarding_step = detail?.onboarding_step ?? null;
+        } else if (user.role === 'ADMIN_SUPERVISOR') {
+          onboarding_step = 1;
+        }
+
         return {
           success: true,
           exists: true,
@@ -600,6 +622,7 @@ export class AuthController {
             country_code: user.country_code,
             phone: user.phone,
             full_phone: `${user.country_code}${user.phone}`,
+            onboarding_step: onboarding_step,
             company: (user as any).company ? {
               id: (user as any).company.id,
               name: (user as any).company.name,
@@ -628,7 +651,7 @@ export class AuthController {
     try {
       const user = await (User as any).findOne({
         where: { email },
-        attributes: ['id', 'first_name', 'last_name', 'role', 'status', 'email'],
+        attributes: ['id', 'first_name', 'last_name', 'role', 'status', 'email', 'company_id'],
         include: [{
           model: Company,
           as: 'company',
@@ -637,6 +660,14 @@ export class AuthController {
       });
 
       if (user) {
+        let onboarding_step: number | null = null;
+        if (user.company_id) {
+          const detail = await (CompanyDetail as any).findOne({ where: { company_id: user.company_id } });
+          onboarding_step = detail?.onboarding_step ?? null;
+        } else if (user.role === 'ADMIN_SUPERVISOR') {
+          onboarding_step = 1;
+        }
+
         return {
           success: true,
           exists: true,
@@ -647,6 +678,7 @@ export class AuthController {
             role: user.role,
             status: user.status,
             email: user.email,
+            onboarding_step: onboarding_step,
             company: (user as any).company ? {
               id: (user as any).company.id,
               name: (user as any).company.name,

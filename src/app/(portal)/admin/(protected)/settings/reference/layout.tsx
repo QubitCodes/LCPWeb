@@ -9,7 +9,6 @@ import Link from 'next/link';
  */
 const REF_TABS = [
     { key: 'industries', label: 'Industries' },
-    { key: 'categories', label: 'Categories' },
     { key: 'skills', label: 'Skills' }
 ];
 
@@ -24,7 +23,7 @@ export default function ReferenceLayout({ children }: { children: React.ReactNod
         <div className="space-y-6">
             <div>
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Reference Data</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Manage lookup tables for Industries, Categories, and Skills.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Manage lookup tables for Industries and Skills.</p>
             </div>
 
             {/* Horizontal sub-tabs */}

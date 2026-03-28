@@ -19,7 +19,9 @@ const registerPhoneSchema = z.object({
  * @swagger
  * /api/v1/auth/register-phone:
  *   post:
- *     description: Register new user verified via Phone Auth. User will be in pending status until approved.
+ *     summary: Register Worker (Post-OTP)
+ *     description: Register a brand new worker profile after successfully verifying their phone number via Firebase. The user remains in a pending status until approved by a Supervisor or Admin.
+ *     tags: [Mobile - Auth]
  */
 export async function POST(req: NextRequest) {
     try {

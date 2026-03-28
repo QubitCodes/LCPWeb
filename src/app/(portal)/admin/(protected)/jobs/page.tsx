@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import JobDialog from './components/JobDialog';
-import ViewJobDialog from './components/ViewJobDialog';
 
 // Define Job type based on API response
 interface Job {
@@ -36,7 +35,6 @@ export default function JobsPage() {
     // Dialog State
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editJob, setEditJob] = useState<Job | null>(null);
-    const [viewJob, setViewJob] = useState<Job | null>(null);
 
     // Fetch Data
     const fetchData = async () => {
@@ -98,7 +96,12 @@ export default function JobsPage() {
                     <div className="h-9 w-9 rounded-lg bg-orange-100 dark:bg-orange-500/10 flex items-center justify-center flex-shrink-0 text-orange-600 dark:text-orange-400">
                         <Briefcase className="w-5 h-5" />
                     </div>
-                    <span className="font-medium text-slate-900 dark:text-white">{row.original.name}</span>
+                    <button 
+                         onClick={() => router.push(`/admin/jobs/${row.original.id}`)}
+                         className="font-medium text-slate-900 dark:text-white hover:text-blue-600 transition-colors text-left"
+                    >
+                         {row.original.name}
+                    </button>
                 </div>
             )
         },
@@ -138,7 +141,7 @@ export default function JobsPage() {
             cell: ({ row }) => (
                 <div className="flex justify-end gap-2">
                     <button
-                        onClick={() => setViewJob(row.original)}
+                        onClick={() => router.push(`/admin/jobs/${row.original.id}`)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded transition-colors"
                         title="View Details"
                     >
@@ -147,7 +150,7 @@ export default function JobsPage() {
                     <button
                         onClick={() => setEditJob(row.original)}
                         className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 rounded transition-colors"
-                        title="Edit Job"
+                        title="Quick Edit"
                     >
                         <Pencil className="w-4 h-4" />
                     </button>
@@ -184,12 +187,6 @@ export default function JobsPage() {
                 onClose={() => setEditJob(null)}
                 onSuccess={fetchData}
                 job={editJob}
-            />
-
-            <ViewJobDialog
-                isOpen={!!viewJob}
-                onClose={() => setViewJob(null)}
-                job={viewJob}
             />
         </div>
     );

@@ -14,12 +14,14 @@ interface CompanyAttributes {
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
   documents?: object; // Array of { name: string, url: string }
+  is_onboarding_completed: boolean;
+  delete_reason?: string;
   created_at?: Date;
   updated_at?: Date;
   deleted_at?: Date;
 }
 
-interface CompanyCreationAttributes extends Optional<CompanyAttributes, 'id' | 'status' | 'approval_status' | 'documents' | 'website' | 'address' | 'tax_id' | 'industry_id'> { }
+interface CompanyCreationAttributes extends Optional<CompanyAttributes, 'id' | 'status' | 'approval_status' | 'documents' | 'website' | 'address' | 'tax_id' | 'industry_id' | 'is_onboarding_completed' | 'delete_reason'> { }
 
 class Company extends Model<CompanyAttributes, CompanyCreationAttributes> implements CompanyAttributes {
   public id!: string;
@@ -34,6 +36,8 @@ class Company extends Model<CompanyAttributes, CompanyCreationAttributes> implem
   public status!: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   public approval_status!: 'PENDING' | 'APPROVED' | 'REJECTED';
   public documents!: object;
+  public is_onboarding_completed!: boolean;
+  public delete_reason!: string;
 
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
@@ -75,7 +79,13 @@ class Company extends Model<CompanyAttributes, CompanyCreationAttributes> implem
     contact_email: {
       type: DataTypes.STRING,
       allowNull: true,
-      validate: { isEmail: true }
+      validate: {
+        isEmailOrNull(value: string | null) {
+          if (value !== null && value !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            throw new Error('Invalid email format');
+          }
+        }
+      }
     },
     contact_phone: {
       type: DataTypes.STRING,
@@ -93,6 +103,15 @@ class Company extends Model<CompanyAttributes, CompanyCreationAttributes> implem
       type: DataTypes.JSON,
       allowNull: true,
       defaultValue: []
+    },
+    is_onboarding_completed: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    delete_reason: {
+      type: DataTypes.STRING,
+      allowNull: true,
     }
   },
   {

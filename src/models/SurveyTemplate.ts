@@ -17,8 +17,8 @@ interface SurveyTemplateAttributes {
 	description?: string | null;
 	/** FK to ref_industries — NULL means applicable to all industries */
 	industry_id?: number | null;
-	/** SURVEY = no scoring, QUIZ = has points per question */
-	type: 'SURVEY' | 'QUIZ';
+	/** SURVEY = no scoring, QUIZ = has points per question, ONBOARDING = onboarding forms */
+	type: 'SURVEY' | 'QUIZ' | 'ONBOARDING';
 	/** Template lifecycle status */
 	status: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
 	/** System templates are protected from deletion and editing of structure */
@@ -43,7 +43,7 @@ class SurveyTemplate
 	declare public slug: string | null;
 	declare public description: string | null;
 	declare public industry_id: number | null;
-	declare public type: 'SURVEY' | 'QUIZ';
+	declare public type: 'SURVEY' | 'QUIZ' | 'ONBOARDING';
 	declare public status: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
 	declare public is_system: boolean;
 	declare public created_by: string | null;
@@ -82,7 +82,7 @@ class SurveyTemplate
 			defaultValue: null,
 		},
 		type: {
-			type: DataTypes.ENUM('SURVEY', 'QUIZ'),
+			type: DataTypes.ENUM('SURVEY', 'QUIZ', 'ONBOARDING'),
 			allowNull: false,
 			defaultValue: 'SURVEY',
 		},

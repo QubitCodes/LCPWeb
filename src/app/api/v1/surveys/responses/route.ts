@@ -59,7 +59,13 @@ export async function POST(req: NextRequest) {
 		}
 
 		const body = await req.json();
-		const result = await SurveyController.createResponse(body, user.id);
+
+		// If an Admin assigns a form to a company, they leave the respondent_id null
+		// so the company's supervisors can claim it later.
+		const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(user.role);
+		const respondentId = (isAdmin && body.is_assignment) ? null : user.id;
+
+		const result = await SurveyController.createResponse(body, respondentId);
 
 		if (result.success) {
 			return sendResponse(201, { status: true, message: result.message, code: RESPONSE_CODES.CREATED, data: result.data });

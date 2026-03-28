@@ -65,7 +65,10 @@ export class CompanyController {
       }
 
       const company = await (Company as any).findByPk(id, {
-        include: [{ model: sequelize.models.Industry, as: 'industry', attributes: ['id', 'name'], required: false }]
+        include: [
+          { model: sequelize.models.Industry, as: 'industry', attributes: ['id', 'name'], required: false },
+          { model: sequelize.models.CompanyDetail, as: 'details', required: false }
+        ]
       });
 
       if (!company) {

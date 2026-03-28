@@ -11,7 +11,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
   try {
     const { type } = await params;
-    const result = await ReferenceController.list(type);
+    
+    // Support basic filtering (e.g. ?industry_id=123 for categories)
+    const { searchParams } = new URL(req.url);
+    const industry_id = searchParams.get('industry_id');
+    const filters = industry_id ? { industry_id: Number(industry_id) } : {};
+
+    const result = await ReferenceController.list(type, filters);
 
     return sendResponse(result.success ? 200 : 400, {
       status: result.success,

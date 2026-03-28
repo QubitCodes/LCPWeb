@@ -1,7 +1,7 @@
 'use client';
 
 import { useHeader } from '@/components/HeaderContext';
-import { Building2, Users, MapPin, HardHat } from 'lucide-react';
+import { Building2, Users, MapPin, HardHat, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -31,6 +31,7 @@ export default function CompanyLayout({
         { name: 'People', href: `/admin/companies/${companyId}/people`, icon: Users },
         { name: 'Sites / Projects', href: `/admin/companies/${companyId}/sites`, icon: MapPin },
         { name: 'Enrolled Workers', href: `/admin/companies/${companyId}/workers`, icon: HardHat },
+        { name: 'Onboarding Forms', href: `/admin/companies/${companyId}/onboarding`, icon: FileText },
     ];
 
     // Fetch minimal company info for the header

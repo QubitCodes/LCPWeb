@@ -14,8 +14,8 @@ interface SurveyResponseAttributes {
 	site_id?: string | null;
 	/** FK to companies — the company this response belongs to */
 	company_id: string;
-	/** FK to users — who is filling out the survey */
-	respondent_id: string;
+	/** FK to users — who is filling out the survey (Nullable until claimed) */
+	respondent_id?: string | null;
 	/** Completion status of this response */
 	status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED';
 	/** When the survey was marked complete */
@@ -28,7 +28,7 @@ interface SurveyResponseAttributes {
 }
 
 interface SurveyResponseCreationAttributes
-	extends Optional<SurveyResponseAttributes, 'id' | 'site_id' | 'status' | 'completed_at' | 'delete_reason'> { }
+	extends Optional<SurveyResponseAttributes, 'id' | 'site_id' | 'respondent_id' | 'status' | 'completed_at' | 'delete_reason'> { }
 
 class SurveyResponse
 	extends Model<SurveyResponseAttributes, SurveyResponseCreationAttributes>
@@ -37,7 +37,7 @@ class SurveyResponse
 	declare public template_id: string;
 	declare public site_id: string | null;
 	declare public company_id: string;
-	declare public respondent_id: string;
+	declare public respondent_id: string | null;
 	declare public status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED';
 	declare public completed_at: Date | null;
 	declare public delete_reason: string | null;
@@ -69,7 +69,8 @@ class SurveyResponse
 		},
 		respondent_id: {
 			type: DataTypes.UUID,
-			allowNull: false,
+			allowNull: true,
+			defaultValue: null,
 		},
 		status: {
 			type: DataTypes.ENUM('DRAFT', 'IN_PROGRESS', 'COMPLETED'),

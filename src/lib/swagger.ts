@@ -13,6 +13,10 @@ export const getApiDocs = async () => {
           name: 'Dev Team',
         },
       },
+      tags: [
+        { name: 'Mobile - Auth', description: 'Authentication and Registration endpoints to establish sessions.' },
+        { name: 'Mobile - Dashboard', description: 'Primary data endpoints loaded upon successful login.' },
+      ],
       components: {
         securitySchemes: {
           BearerAuth: {

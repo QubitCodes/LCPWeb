@@ -35,7 +35,6 @@ class Course extends Model<CourseAttributes, CourseCreationAttributes> implement
     job_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      unique: true,
     },
     title: {
       type: DataTypes.STRING,

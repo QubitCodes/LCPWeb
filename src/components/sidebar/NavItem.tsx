@@ -16,6 +16,8 @@ interface NavItemProps {
     isBeta?: boolean;
     /** Optional array of paths for multi-path active detection (e.g. Overview matches multiple dashboard routes) */
     activePaths?: string[];
+    /** If true, the route must match exactly, preventing sub-routes from highlighting this item */
+    exact?: boolean;
 }
 
 /**
@@ -23,11 +25,11 @@ interface NavItemProps {
  * active state highlighting, and optional beta badge.
  * Supports multi-path active matching via `activePaths`.
  */
-export default function NavItem({ href, icon: Icon, label, isBeta = false, activePaths }: NavItemProps) {
+export default function NavItem({ href, icon: Icon, label, isBeta = false, activePaths, exact = false }: NavItemProps) {
     const pathname = usePathname();
     const active = activePaths
-        ? activePaths.some(path => pathname === path || pathname.startsWith(path + '/'))
-        : pathname === href || pathname.startsWith(href + '/');
+        ? activePaths.some((path: string) => exact ? pathname === path : (pathname === path || pathname.startsWith(path + '/')))
+        : exact ? pathname === href : (pathname === href || pathname.startsWith(href + '/'));
 
     return (
         <Link

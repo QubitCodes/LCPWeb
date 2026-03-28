@@ -12,7 +12,9 @@ const phoneLoginSchema = z.object({
  * @swagger
  * /api/v1/auth/firebase/phone:
  *   post:
- *     description: Login user with Firebase Phone Auth ID Token
+ *     summary: Firebase OTP Login
+ *     description: Authenticate using a Firebase Phone Auth ID token securely after user verifies OTP. If the user doesn't exist, it flags them so the client can redirect to the Registration endpoint.
+ *     tags: [Mobile - Auth]
  */
 export async function POST(req: NextRequest) {
     try {

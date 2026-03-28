@@ -50,7 +50,7 @@ class CompanyDetail
         onboarding_step: {
             type: DataTypes.INTEGER,
             allowNull: true,
-            defaultValue: null,
+            defaultValue: 1,
             comment: 'NULL = onboarding complete, integer = step to resume',
         },
         delete_reason: {

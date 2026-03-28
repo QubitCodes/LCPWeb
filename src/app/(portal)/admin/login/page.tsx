@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,8 +8,7 @@ import {
     Mail, Lock, ArrowRight, Loader2, Phone, User, Building2,
     ChevronDown, ShieldCheck, CheckCircle2, Search
 } from 'lucide-react';
-import { auth } from '@/lib/firebaseClient';
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { useFirebaseOtp } from '@/lib/useFirebaseOtp';
 
 // ========================================================
 // TYPES & CONSTANTS
@@ -208,9 +207,14 @@ function CountryCodeDropdown({
  * 1. Phone input (no country code) → check user
  * 2a. Existing user → Welcome + OTP verification (uses country_code from DB)
  * 2b. New user → Registration form (with country code dropdown) + OTP verification
+ *
+ * Uses the shared useFirebaseOtp hook for all Firebase/reCAPTCHA logic.
  */
 function OtpLoginTab() {
     const router = useRouter();
+
+    /** Shared Firebase OTP hook */
+    const firebaseOtp = useFirebaseOtp();
 
     // Step management
     const [step, setStep] = useState<'phone' | 'otp' | 'register' | 'register_otp' | 'success'>('phone');
@@ -226,15 +230,9 @@ function OtpLoginTab() {
     // User data from checkUser response (includes country_code from DB)
     const [userData, setUserData] = useState<any>(null);
 
-    // OTP state
+    // OTP state — individual input fields
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
-
-    // Resend OTP cooldown timer (seconds)
-    const [resendTimer, setResendTimer] = useState(0);
-    const resendIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Registration form state
     const [regForm, setRegForm] = useState({
@@ -246,91 +244,23 @@ function OtpLoginTab() {
     });
 
     /**
-     * Create a fresh reCAPTCHA verifier on a dynamically created DOM element.
-     * This avoids the "reCAPTCHA has already been rendered" error by never
-     * reusing the same container element.
+     * Handle OTP input: auto-focus next field.
      */
-    const getRecaptchaVerifier = useCallback(() => {
-        // 1. Clear old verifier if exists
-        if (recaptchaVerifierRef.current) {
-            try { recaptchaVerifierRef.current.clear(); } catch (_) { /* ignore */ }
-            recaptchaVerifierRef.current = null;
+    const handleOtpChange = (index: number, value: string) => {
+        if (!/^\d*$/.test(value)) return;
+        const newOtp = [...otp];
+        newOtp[index] = value.slice(-1);
+        setOtp(newOtp);
+
+        if (value && index < 5) {
+            otpRefs.current[index + 1]?.focus();
         }
+    };
 
-        // 2. Remove any old recaptcha container from DOM
-        const oldContainer = document.getElementById('recaptcha-container');
-        if (oldContainer) oldContainer.remove();
-
-        // 3. Create a brand new container element in document.body
-        const newContainer = document.createElement('div');
-        newContainer.id = 'recaptcha-container';
-        document.body.appendChild(newContainer);
-
-        // 4. Create fresh verifier on the new element
-        const verifier = new RecaptchaVerifier(auth, newContainer, {
-            size: 'invisible',
-            callback: () => { /* reCAPTCHA solved */ },
-        });
-        recaptchaVerifierRef.current = verifier;
-        return verifier;
-    }, []);
-
-    /** Cleanup reCAPTCHA on unmount */
-    useEffect(() => {
-        return () => {
-            if (recaptchaVerifierRef.current) {
-                try { recaptchaVerifierRef.current.clear(); } catch (_) { /* ignore */ }
-            }
-            const el = document.getElementById('recaptcha-container');
-            if (el) el.remove();
-        };
-    }, []);
-
-    /**
-     * Start a countdown timer for OTP resend cooldown.
-     * Prevents spamming the resend button.
-     */
-    const startResendTimer = useCallback((seconds: number = 30) => {
-        setResendTimer(seconds);
-        if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
-        resendIntervalRef.current = setInterval(() => {
-            setResendTimer((prev) => {
-                if (prev <= 1) {
-                    if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    }, []);
-
-    /** Cleanup resend timer on unmount */
-    useEffect(() => {
-        return () => {
-            if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
-        };
-    }, []);
-
-    /**
-     * Resend OTP to the current phone number.
-     * Reuses the same full phone number from the current context.
-     */
-    const handleResendOtp = async () => {
-        if (resendTimer > 0) return;
-        setError('');
-        setOtp(['', '', '', '', '', '']);
-
-        let fullPhone = '';
-        if (step === 'otp' && userData) {
-            // Existing user: use country_code from DB
-            fullPhone = `${userData.country_code || '+91'}${phoneNumber}`;
-        } else {
-            // Registration: use selected country code
-            fullPhone = `${countryCode}${phoneNumber}`;
+    const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Backspace' && !otp[index] && index > 0) {
+            otpRefs.current[index - 1]?.focus();
         }
-
-        await sendOtp(fullPhone);
-        startResendTimer(30);
     };
 
     /**
@@ -372,8 +302,7 @@ function OtpLoginTab() {
                 setStep('otp');
                 // Send OTP using country_code from DB
                 const dbCountryCode = data.data.country_code || '+91';
-                await sendOtp(`${dbCountryCode}${phoneNumber}`);
-                startResendTimer(30);
+                await firebaseOtp.sendOtp(`${dbCountryCode}${phoneNumber}`);
             } else {
                 // New user — show registration form
                 setStep('register');
@@ -382,42 +311,6 @@ function OtpLoginTab() {
             setError('Network error occurred.');
         } finally {
             setLoading(false);
-        }
-    };
-
-    /**
-     * Send OTP via Firebase phone auth.
-     * @param fullPhone - Full phone number with country code (e.g. "+919876543210")
-     */
-    const sendOtp = async (fullPhone: string) => {
-        try {
-            // Always create a brand new verifier (fresh DOM element each time)
-            const verifier = getRecaptchaVerifier();
-            const result = await signInWithPhoneNumber(auth, fullPhone, verifier);
-            setConfirmationResult(result);
-        } catch (err: any) {
-            console.error('Firebase OTP Error:', err);
-            setError(err.message || 'Failed to send OTP. Please try again.');
-        }
-    };
-
-    /**
-     * Handle OTP input: auto-focus next field, auto-submit on last digit.
-     */
-    const handleOtpChange = (index: number, value: string) => {
-        if (!/^\d*$/.test(value)) return;
-        const newOtp = [...otp];
-        newOtp[index] = value.slice(-1);
-        setOtp(newOtp);
-
-        if (value && index < 5) {
-            otpRefs.current[index + 1]?.focus();
-        }
-    };
-
-    const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Backspace' && !otp[index] && index > 0) {
-            otpRefs.current[index - 1]?.focus();
         }
     };
 
@@ -435,15 +328,11 @@ function OtpLoginTab() {
         setError('');
 
         try {
-            if (!confirmationResult) {
-                setError('OTP session expired. Please request a new code.');
+            const idToken = await firebaseOtp.verifyOtp(otpCode);
+            if (!idToken) {
                 setLoading(false);
-                return;
+                return; // Hook already set its error
             }
-
-            // Verify with Firebase
-            const credential = await confirmationResult.confirm(otpCode);
-            const idToken = await credential.user.getIdToken();
 
             // Send to backend
             const res = await fetch('/api/v1/auth/firebase/phone', {
@@ -484,9 +373,10 @@ function OtpLoginTab() {
 
         try {
             // Send OTP using selected country code from registration dropdown
-            await sendOtp(`${countryCode}${phoneNumber}`);
-            startResendTimer(30);
-            setStep('register_otp');
+            const success = await firebaseOtp.sendOtp(`${countryCode}${phoneNumber}`);
+            if (success) {
+                setStep('register_otp');
+            }
         } catch (err: any) {
             setError(err.message || 'Failed to send OTP');
         } finally {
@@ -508,15 +398,11 @@ function OtpLoginTab() {
         setError('');
 
         try {
-            if (!confirmationResult) {
-                setError('OTP session expired. Please request a new code.');
+            const idToken = await firebaseOtp.verifyOtp(otpCode);
+            if (!idToken) {
                 setLoading(false);
-                return;
+                return; // Hook already set its error
             }
-
-            // Verify OTP with Firebase
-            const credential = await confirmationResult.confirm(otpCode);
-            const idToken = await credential.user.getIdToken();
 
             // Submit registration to backend
             const res = await fetch('/api/v1/auth/register-phone', {
@@ -549,6 +435,15 @@ function OtpLoginTab() {
     };
 
     /**
+     * Resend OTP to the current phone number.
+     */
+    const handleResendOtp = async () => {
+        if (firebaseOtp.resendTimer > 0) return;
+        setOtp(['', '', '', '', '', '']);
+        await firebaseOtp.resendOtp();
+    };
+
+    /**
      * Reset to the phone input step.
      */
     const handleBack = () => {
@@ -556,19 +451,25 @@ function OtpLoginTab() {
         setError('');
         setOtp(['', '', '', '', '', '']);
         setUserData(null);
-        setConfirmationResult(null);
+        firebaseOtp.reset();
     };
+
+    /** Combined error display — local error or hook error */
+    const displayError = error || firebaseOtp.error;
+
+    /** Combined loading state */
+    const isLoading = loading || firebaseOtp.sending || firebaseOtp.verifying;
 
     // ---- RENDER ----
 
     return (
         <div className="space-y-5">
-            {/* reCAPTCHA container (invisible) */}
-            {/* reCAPTCHA container is created dynamically in document.body */}
+            {/* Hidden reCAPTCHA container */}
+            <div id={firebaseOtp.recaptchaContainerId} style={{ display: 'none' }} />
 
-            {error && (
+            {displayError && (
                 <div className="bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-lg flex items-center dark:bg-red-900/10 dark:border-red-900/20 dark:text-red-400 text-sm">
-                    <span>{error}</span>
+                    <span>{displayError}</span>
                 </div>
             )}
 
@@ -597,10 +498,10 @@ function OtpLoginTab() {
                     <button
                         type="button"
                         onClick={handleCheckUser}
-                        disabled={loading || !phoneNumber.trim()}
+                        disabled={isLoading || !phoneNumber.trim()}
                         className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200 hover:-translate-y-px active:translate-y-0 shadow-blue-500/20 hover:shadow-blue-500/40"
                     >
-                        {loading ? (
+                        {isLoading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                             <span className="flex items-center">
@@ -646,10 +547,10 @@ function OtpLoginTab() {
                     <button
                         type="button"
                         onClick={handleVerifyOtp}
-                        disabled={loading || otp.join('').length !== 6}
+                        disabled={isLoading || otp.join('').length !== 6}
                         className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200 hover:-translate-y-px active:translate-y-0 shadow-blue-500/20 hover:shadow-blue-500/40"
                     >
-                        {loading ? (
+                        {isLoading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                             <span className="flex items-center">
@@ -670,10 +571,10 @@ function OtpLoginTab() {
                         <button
                             type="button"
                             onClick={handleResendOtp}
-                            disabled={resendTimer > 0 || loading}
+                            disabled={firebaseOtp.resendTimer > 0 || isLoading}
                             className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 disabled:text-slate-400 disabled:dark:text-slate-600 disabled:cursor-not-allowed transition"
                         >
-                            {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+                            {firebaseOtp.resendTimer > 0 ? `Resend in ${firebaseOtp.resendTimer}s` : 'Resend OTP'}
                         </button>
                     </div>
                 </>
@@ -839,10 +740,10 @@ function OtpLoginTab() {
                     <button
                         type="button"
                         onClick={handleRegisterSubmit}
-                        disabled={loading || !regForm.first_name.trim() || !regForm.last_name.trim() || !regForm.company_id.trim()}
+                        disabled={isLoading || !regForm.first_name.trim() || !regForm.last_name.trim() || !regForm.company_id.trim()}
                         className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200 hover:-translate-y-px active:translate-y-0 shadow-blue-500/20 hover:shadow-blue-500/40"
                     >
-                        {loading ? (
+                        {isLoading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                             <span className="flex items-center">
@@ -896,10 +797,10 @@ function OtpLoginTab() {
                     <button
                         type="button"
                         onClick={handleRegisterVerifyOtp}
-                        disabled={loading || otp.join('').length !== 6}
+                        disabled={isLoading || otp.join('').length !== 6}
                         className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200 hover:-translate-y-px active:translate-y-0 shadow-blue-500/20 hover:shadow-blue-500/40"
                     >
-                        {loading ? (
+                        {isLoading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                             <span className="flex items-center">
@@ -920,10 +821,10 @@ function OtpLoginTab() {
                         <button
                             type="button"
                             onClick={handleResendOtp}
-                            disabled={resendTimer > 0 || loading}
+                            disabled={firebaseOtp.resendTimer > 0 || isLoading}
                             className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 disabled:text-slate-400 disabled:dark:text-slate-600 disabled:cursor-not-allowed transition"
                         >
-                            {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+                            {firebaseOtp.resendTimer > 0 ? `Resend in ${firebaseOtp.resendTimer}s` : 'Resend OTP'}
                         </button>
                     </div>
                 </>
@@ -953,6 +854,7 @@ function OtpLoginTab() {
         </div>
     );
 }
+
 
 // ========================================================
 // EMAIL/PASSWORD LOGIN TAB COMPONENT
