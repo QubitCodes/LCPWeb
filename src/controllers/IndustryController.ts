@@ -1,4 +1,4 @@
-import { Industry } from '../models';
+import { Industry, Category, IndustryProjectStage } from '../models';
 import { sendResponse } from '../utils/responseHandler';
 
 export class IndustryController {
@@ -7,9 +7,18 @@ export class IndustryController {
     try {
       const industries = await (Industry as any).findAll({
         where: { is_active: true },
+        include: [
+          { model: Category, as: 'categories', attributes: ['id'] },
+          { model: IndustryProjectStage, as: 'project_stages', attributes: ['id'] }
+        ],
         order: [['name', 'ASC']]
       });
-      return { success: true, data: industries };
+      // Filter out industries that lack either categories or project stages
+      const filteredIndustries = industries.filter((ind: any) => 
+        (ind.categories && ind.categories.length > 0) && 
+        (ind.project_stages && ind.project_stages.length > 0)
+      );
+      return { success: true, data: filteredIndustries };
     } catch (error) {
       console.error('Error fetching industries:', error);
       return { success: false, message: 'Failed to fetch industries' };

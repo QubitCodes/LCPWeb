@@ -20,6 +20,7 @@ import LevelRecommendation from './LevelRecommendation';
 import Certificate from './Certificate';
 import CompanyMembershipHistory from './CompanyMembershipHistory';
 import Industry from './Industry';
+import IndustryProjectStage from './IndustryProjectStage';
 import UserApproval from './UserApproval';
 import CompanyDetail from './CompanyDetail';
 import CompanySite from './CompanySite';
@@ -58,6 +59,10 @@ import SystemSetting from './SystemSetting';
 // Industry <-> Category
 (Category as any).belongsTo(Industry, { foreignKey: 'industry_id', as: 'industry' });
 (Industry as any).hasMany(Category, { foreignKey: 'industry_id', as: 'categories' });
+
+// Industry <-> IndustryProjectStage
+(IndustryProjectStage as any).belongsTo(Industry, { foreignKey: 'industry_id', as: 'industry' });
+(Industry as any).hasMany(IndustryProjectStage, { foreignKey: 'industry_id', as: 'project_stages' });
 
 // Job <-> Course
 (Course as any).belongsTo(Job, { foreignKey: 'job_id', as: 'job' });
@@ -132,6 +137,10 @@ import SystemSetting from './SystemSetting';
 // Company Sites (one-to-many)
 (Company as any).hasMany(CompanySite, { foreignKey: 'company_id', as: 'sites' });
 (CompanySite as any).belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+// CompanySite <-> IndustryProjectStage
+(CompanySite as any).belongsTo(IndustryProjectStage, { foreignKey: 'project_stage_id', as: 'project_stage' });
+(IndustryProjectStage as any).hasMany(CompanySite, { foreignKey: 'project_stage_id', as: 'company_sites' });
 
 // CompanySite -> User (contractor representative)
 (CompanySite as any).belongsTo(User, { foreignKey: 'contractor_rep_id', as: 'contractor_rep' });
@@ -212,6 +221,7 @@ const models = {
   Certificate,
   CompanyMembershipHistory,
   Industry,
+  IndustryProjectStage,
   UserApproval,
   CompanyDetail,
   CompanySite,
@@ -248,6 +258,7 @@ export {
   Certificate,
   CompanyMembershipHistory,
   Industry,
+  IndustryProjectStage,
   UserApproval,
   CompanyDetail,
   CompanySite,

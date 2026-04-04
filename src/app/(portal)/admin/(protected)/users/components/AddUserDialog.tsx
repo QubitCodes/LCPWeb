@@ -4,27 +4,20 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Loader2, User, Mail, Briefcase, Shield } from 'lucide-react';
+import { X, Loader2, User, Mail, Shield, Phone } from 'lucide-react';
+import { CountryCodeDropdown } from '@/components/ui/CountryCodeDropdown';
 
 // Schema Validation
-const userSchema = z.object({
+const adminSchema = z.object({
     first_name: z.string().min(2, 'First name is required'),
     last_name: z.string().min(2, 'Last name is required'),
-    email: z.string().email('Invalid email address'),
-    role: z.enum(['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'WORKER']),
-    company_id: z.string().optional(),
-    password: z.string().min(8, 'Password must be at least 8 characters')
-}).refine((data) => {
-    if (['SUPERVISOR', 'WORKER'].includes(data.role) && !data.company_id) {
-        return false;
-    }
-    return true;
-}, {
-    message: "Company is required for Supervisors and Workers",
-    path: ["company_id"],
+    email: z.string().email('Invalid email address').optional().or(z.literal('')),
+    role: z.enum(['ADMIN', 'SUPER_ADMIN']),
+    phone_number: z.string().min(6, 'Phone number is required'),
+    country_code: z.string()
 });
 
-type UserFormData = z.infer<typeof userSchema>;
+type AdminFormData = z.infer<typeof adminSchema>;
 
 interface AddUserDialogProps {
     isOpen: boolean;
@@ -33,40 +26,39 @@ interface AddUserDialogProps {
 }
 
 export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps) {
-    const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
     const [serverError, setServerError] = useState('');
+    const [currentUserRole, setCurrentUserRole] = useState<string>('');
+
+    useEffect(() => {
+        try {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                setCurrentUserRole(user.role);
+            }
+        } catch (e) {}
+    }, []);
 
     const {
         register,
         handleSubmit,
+        setValue,
         watch,
         reset,
         formState: { errors, isSubmitting }
-    } = useForm<UserFormData>({
-        resolver: zodResolver(userSchema),
+    } = useForm<AdminFormData>({
+        resolver: zodResolver(adminSchema),
         defaultValues: {
             first_name: '',
             last_name: '',
             email: '',
-            role: 'WORKER',
-            company_id: '',
-            password: ''
+            role: 'ADMIN',
+            phone_number: '',
+            country_code: '+971'
         }
     });
 
-    const role = watch('role');
-
-    // Fetch Companies on mount/open
-    useEffect(() => {
-        if (isOpen) {
-            fetch('/api/v1/companies')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status) setCompanies(data.data);
-                })
-                .catch(err => console.error('Failed to fetch companies', err));
-        }
-    }, [isOpen]);
+    const countryCode = watch('country_code');
 
     // Handle Close & Reset
     const handleClose = () => {
@@ -75,7 +67,7 @@ export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDia
         onClose();
     };
 
-    const onSubmit = async (data: UserFormData) => {
+    const onSubmit = async (data: AdminFormData) => {
         setServerError('');
 
         try {
@@ -86,7 +78,14 @@ export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDia
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify({
+                    first_name: data.first_name,
+                    last_name: data.last_name,
+                    email: data.email || undefined,
+                    role: data.role,
+                    phone: data.phone_number,
+                    country_code: data.country_code
+                })
             });
             const result = await res.json();
 
@@ -95,7 +94,7 @@ export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDia
                 onSuccess();
                 onClose();
             } else {
-                setServerError(result.message || 'Failed to create user');
+                setServerError(result.message || 'Failed to create admin');
             }
         } catch (error) {
             setServerError('An unexpected error occurred');
@@ -111,8 +110,8 @@ export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDia
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add New User</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Create a new user account</p>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add New Admin</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Create a new platform administrator</p>
                     </div>
                     <button onClick={handleClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                         <X className="w-5 h-5" />
@@ -155,7 +154,28 @@ export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDia
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number <span className="text-red-500">*</span></label>
+                            <div className="flex gap-2">
+                                <CountryCodeDropdown 
+                                    value={countryCode} 
+                                    onChange={(val) => setValue('country_code', val)} 
+                                />
+                                <div className="relative flex-1">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <input
+                                        {...register('phone_number')}
+                                        type="tel"
+                                        onChange={(e) => setValue('phone_number', e.target.value.replace(/[^0-9]/g, ''))}
+                                        className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-400"
+                                        placeholder="Enter phone number"
+                                    />
+                                </div>
+                            </div>
+                            {errors.phone_number && <p className="mt-1 text-xs text-red-500">{errors.phone_number.message}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email <span className="text-slate-400 font-normal normal-case">(optional)</span></label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
@@ -169,17 +189,6 @@ export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDia
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password <span className="text-red-500">*</span></label>
-                            <input
-                                {...register('password')}
-                                type="password"
-                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-400"
-                                placeholder="••••••••"
-                            />
-                            {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
-                        </div>
-
-                        <div>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role <span className="text-red-500">*</span></label>
                             <div className="relative">
                                 <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -187,33 +196,12 @@ export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDia
                                     {...register('role')}
                                     className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
                                 >
-                                    <option value="WORKER">Worker</option>
-                                    <option value="SUPERVISOR">Supervisor</option>
                                     <option value="ADMIN">Admin</option>
-                                    <option value="SUPER_ADMIN">Super Admin</option>
+                                    {currentUserRole === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super Admin</option>}
                                 </select>
                             </div>
                             {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>}
                         </div>
-
-                        {['SUPERVISOR', 'WORKER'].includes(role) && (
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company <span className="text-red-500">*</span></label>
-                                <div className="relative">
-                                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                    <select
-                                        {...register('company_id')}
-                                        className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
-                                    >
-                                        <option value="">Select Company</option>
-                                        {companies.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                {errors.company_id && <p className="mt-1 text-xs text-red-500">{errors.company_id.message}</p>}
-                            </div>
-                        )}
 
                     </form>
                 </div>
@@ -234,7 +222,7 @@ export default function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDia
                         className="px-5 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
                     >
                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                        {isSubmitting ? 'Creating...' : 'Create User'}
+                        {isSubmitting ? 'Creating...' : 'Create Admin'}
                     </button>
                 </div>
             </div>

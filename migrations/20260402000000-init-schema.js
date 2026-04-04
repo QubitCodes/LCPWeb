@@ -169,8 +169,49 @@ export async function up(queryInterface, Sequelize) {
       defaultValue: 0,
     },
     documents: {
-      type: Sequelize.literal('JSON'),
-      defaultValue: [],
+      type: Sequelize.literal('JSONB'),
+      defaultValue: '[]',
+    },
+    created_at: {
+      type: Sequelize.literal('TIMESTAMP WITH TIME ZONE'),
+      allowNull: false,
+    },
+    updated_at: {
+      type: Sequelize.literal('TIMESTAMP WITH TIME ZONE'),
+      allowNull: false,
+    },
+    deleted_at: {
+      type: Sequelize.literal('TIMESTAMP WITH TIME ZONE'),
+    },
+  });
+
+  // -----------------------------------------------------------------------
+  // TABLE: ref_industry_project_stages
+  // DESCRIPTION: Dynamic project stages tailored to specific industries.
+  // -----------------------------------------------------------------------
+  await queryInterface.createTable('ref_industry_project_stages', {
+    id: {
+      type: Sequelize.literal('INTEGER'),
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    name: {
+      type: Sequelize.literal('VARCHAR(255)'),
+      allowNull: false,
+    },
+    industry_id: {
+      type: Sequelize.literal('INTEGER'),
+      allowNull: false,
+      references: {
+        model: 'ref_industries',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'CASCADE',
+    },
+    is_active: {
+      type: Sequelize.literal('BOOLEAN'),
+      defaultValue: true,
     },
     created_at: {
       type: Sequelize.literal('TIMESTAMP WITH TIME ZONE'),
@@ -1250,9 +1291,14 @@ export async function up(queryInterface, Sequelize) {
     address: {
       type: Sequelize.literal('TEXT'),
     },
-    project_stage: {
-      type: Sequelize.ENUM('FOUNDATION', 'STRUCTURE', 'MASONRY', 'FINISHING', 'MEP'),
-      defaultValue: null,
+    project_stage_id: {
+      type: Sequelize.literal('INTEGER'),
+      references: {
+        model: 'ref_industry_project_stages',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
     },
     expected_duration_months: {
       type: Sequelize.literal('INTEGER'),
@@ -1812,6 +1858,7 @@ export async function down(queryInterface, Sequelize) {
   await queryInterface.dropTable('courses', { cascade: true });
   await queryInterface.dropTable('ref_jobs', { cascade: true });
   await queryInterface.dropTable('ref_categories', { cascade: true });
+  await queryInterface.dropTable('ref_industry_project_stages', { cascade: true });
   await queryInterface.dropTable('users', { cascade: true });
   await queryInterface.dropTable('companies', { cascade: true });
   await queryInterface.dropTable('ref_industries', { cascade: true });

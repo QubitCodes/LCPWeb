@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Save, X, Loader2, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X, Loader2, Eye, AlertTriangle } from 'lucide-react';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useToast } from '@/components/ui/Toast';
 
@@ -18,6 +18,8 @@ interface RefItem {
     is_active?: boolean;
     industry_id?: number;
     industry?: { id: number; name: string };
+    categories?: any[];
+    project_stages?: any[];
 }
 
 /**
@@ -299,7 +301,14 @@ export default function ReferenceTypePage() {
                             ) : (
                                 <>
                                     <div className="flex-1 flex flex-col">
-                                        <span className="text-sm text-slate-900 dark:text-white">{item.name}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-slate-900 dark:text-white">{item.name}</span>
+                                            {type === 'industries' && (!item.categories || item.categories.length === 0 || !item.project_stages || item.project_stages.length === 0) && (
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                                    <AlertTriangle className="w-3 h-3" /> Incomplete
+                                                </span>
+                                            )}
+                                        </div>
                                         {type === 'categories' && item.industry && (
                                             <span className="text-xs text-slate-500 font-medium tracking-wide opacity-80 mt-0.5">{item.industry.name}</span>
                                         )}

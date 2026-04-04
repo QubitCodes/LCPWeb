@@ -23,7 +23,7 @@ interface SiteRow {
 	id: string;
 	name: string;
 	address: string | null;
-	project_stage: string | null;
+	project_stage: { id: number; name: string } | null;
 	expected_duration_months: number | null;
 	status: 'ACTIVE' | 'INACTIVE';
 	survey_response_count: number;
@@ -36,25 +36,9 @@ interface SiteRow {
 interface CompanyInfo {
 	id: string;
 	name: string;
+	industry_id?: number | null;
 }
 
-/** Project stage labels */
-const STAGE_LABELS: Record<string, string> = {
-	FOUNDATION: 'Foundation',
-	STRUCTURE: 'Structure',
-	MASONRY: 'Masonry',
-	FINISHING: 'Finishing',
-	MEP: 'MEP',
-};
-
-/** Stage badge colours */
-const STAGE_STYLES: Record<string, string> = {
-	FOUNDATION: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
-	STRUCTURE: 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
-	MASONRY: 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400',
-	FINISHING: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
-	MEP: 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400',
-};
 
 /**
  * Company Sites page — lists all sites for a company.
@@ -75,7 +59,9 @@ export default function CompanySitesPage() {
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [newSiteName, setNewSiteName] = useState('');
 	const [newSiteAddress, setNewSiteAddress] = useState('');
+	const [newProjectStageId, setNewProjectStageId] = useState('');
 	const [creating, setCreating] = useState(false);
+	const [projectStages, setProjectStages] = useState<{ id: number; name: string }[]>([]);
 
 	/** Fetch company info */
 	useEffect(() => {
@@ -95,6 +81,23 @@ export default function CompanySitesPage() {
 		};
 		if (companyId) fetchCompany();
 	}, [companyId]);
+
+	/** Fetch project stages */
+	useEffect(() => {
+		if (company?.industry_id) {
+			const fetchProjectStages = async () => {
+				const token = localStorage.getItem('token');
+				const res = await fetch(`/api/v1/reference/project_stages?industry_id=${company.industry_id}`, {
+					headers: { 'Authorization': `Bearer ${token}` }
+				});
+				const json = await res.json();
+				if (json.status) {
+					setProjectStages(json.data);
+				}
+			};
+			fetchProjectStages();
+		}
+	}, [company?.industry_id]);
 
 	/** Fetch sites */
 	const fetchSites = useCallback(async () => {
@@ -158,6 +161,7 @@ export default function CompanySitesPage() {
 				body: JSON.stringify({
 					name: newSiteName.trim(),
 					address: newSiteAddress.trim() || undefined,
+					project_stage_id: newProjectStageId ? Number(newProjectStageId) : undefined,
 				}),
 			});
 			const json = await res.json();
@@ -165,6 +169,7 @@ export default function CompanySitesPage() {
 				setShowAddModal(false);
 				setNewSiteName('');
 				setNewSiteAddress('');
+				setNewProjectStageId('');
 				fetchSites();
 			}
 		} catch (err) {
@@ -219,12 +224,12 @@ export default function CompanySitesPage() {
 			accessorKey: 'project_stage',
 			header: 'Stage',
 			cell: ({ row }) => {
-				const stage = row.original.project_stage;
-				if (!stage) return <span className="text-slate-400">—</span>;
+				const stageObj = row.original.project_stage as any;
+				if (!stageObj) return <span className="text-slate-400">—</span>;
 				return (
-					<span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${STAGE_STYLES[stage] || ''}`}>
+					<span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
 						<HardHat className="w-3 h-3" />
-						{STAGE_LABELS[stage] || stage}
+						{stageObj.name}
 					</span>
 				);
 			},
@@ -346,6 +351,21 @@ export default function CompanySitesPage() {
 							rows={2}
 							className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
 						/>
+
+						{/* Project Stage */}
+						<label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+							Project Stage
+						</label>
+						<select
+							value={newProjectStageId}
+							onChange={(e) => setNewProjectStageId(e.target.value)}
+							className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-6"
+						>
+							<option value="">Select Stage...</option>
+							{projectStages.map(stage => (
+								<option key={stage.id} value={stage.id}>{stage.name}</option>
+							))}
+						</select>
 
 						{/* Actions */}
 						<div className="flex justify-end gap-3">

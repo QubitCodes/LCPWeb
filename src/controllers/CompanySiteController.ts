@@ -4,6 +4,7 @@ import {
 	User,
 	SurveyResponse,
 	SurveyTemplate,
+	IndustryProjectStage,
 	sequelize,
 } from '../models';
 import { AuditService } from '../services/AuditService';
@@ -39,6 +40,11 @@ export class CompanySiteController {
 						model: User,
 						as: 'site_supervisor',
 						attributes: ['id', 'first_name', 'last_name'],
+					},
+					{
+						model: IndustryProjectStage,
+						as: 'project_stage',
+						attributes: ['id', 'name'],
 					},
 				],
 				order: [['created_at', 'DESC']],
@@ -79,7 +85,7 @@ export class CompanySiteController {
 					{
 						model: Company,
 						as: 'company',
-						attributes: ['id', 'name'],
+						attributes: ['id', 'name', 'industry_id'],
 					},
 					{
 						model: User,
@@ -90,6 +96,11 @@ export class CompanySiteController {
 						model: User,
 						as: 'site_supervisor',
 						attributes: ['id', 'first_name', 'last_name'],
+					},
+					{
+						model: IndustryProjectStage,
+						as: 'project_stage',
+						attributes: ['id', 'name'],
 					},
 					{
 						model: SurveyResponse,
@@ -144,7 +155,7 @@ export class CompanySiteController {
 				company_id: companyId,
 				name: data.name.trim(),
 				address: data.address || null,
-				project_stage: data.project_stage || null,
+				project_stage_id: data.project_stage_id || null,
 				expected_duration_months: data.expected_duration_months || null,
 				contractor_rep_id: data.contractor_rep_id || null,
 				site_supervisor_id: data.site_supervisor_id || null,
@@ -186,7 +197,7 @@ export class CompanySiteController {
 			const updateFields: any = {};
 			if (data.name !== undefined) updateFields.name = data.name.trim();
 			if (data.address !== undefined) updateFields.address = data.address;
-			if (data.project_stage !== undefined) updateFields.project_stage = data.project_stage;
+			if (data.project_stage_id !== undefined) updateFields.project_stage_id = data.project_stage_id;
 			if (data.expected_duration_months !== undefined) updateFields.expected_duration_months = data.expected_duration_months;
 			if (data.contractor_rep_id !== undefined) updateFields.contractor_rep_id = data.contractor_rep_id;
 			if (data.site_supervisor_id !== undefined) updateFields.site_supervisor_id = data.site_supervisor_id;

@@ -66,7 +66,7 @@ export async function GET(
 const updateSiteSchema = z.object({
 	name: z.string().min(1).optional(),
 	address: z.string().optional(),
-	project_stage: z.enum(['FOUNDATION', 'STRUCTURE', 'MASONRY', 'FINISHING', 'MEP']).nullable().optional(),
+	project_stage_id: z.number().int().positive().nullable().optional(),
 	expected_duration_months: z.number().int().positive().nullable().optional(),
 	contractor_rep_id: z.string().uuid().nullable().optional(),
 	site_supervisor_id: z.string().uuid().nullable().optional(),

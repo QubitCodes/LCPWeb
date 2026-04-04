@@ -49,7 +49,7 @@ export default function UsersPage() {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/v1/users');
+            const res = await fetch('/api/v1/users?type=admins');
             const json = await res.json();
             if (json.status) {
                 setData(json.data);

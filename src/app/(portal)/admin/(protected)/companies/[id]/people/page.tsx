@@ -19,9 +19,11 @@ import {
     Shield,
     User,
     Edit,
-    Trash2
+    Trash2,
+    Plus
 } from 'lucide-react';
 import EditUserDialog from '../../../users/components/EditUserDialog';
+import AddWorkerDialog from './components/AddWorkerDialog';
 
 /**
  * User type for the people list.
@@ -69,6 +71,7 @@ export default function CompanyPeoplePage() {
     /** Supervisor detail dialog state */
     const [viewSupervisor, setViewSupervisor] = useState<Person | null>(null);
     const [editUser, setEditUser] = useState<Person | null>(null);
+    const [showAddWorker, setShowAddWorker] = useState(false);
 
     /** User Context for Actions */
     const [userRole, setUserRole] = useState<string>('');
@@ -278,27 +281,38 @@ export default function CompanyPeoplePage() {
 
     return (
         <div className="space-y-6">
-            {/* Tab Bar — uses router.replace so tabs don't pile up in browser history */}
-            <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-1 w-fit">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between">
+                {/* Tab Bar — uses router.replace so tabs don't pile up in browser history */}
+                <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-1 w-fit">
+                    <button
+                        onClick={() => router.replace(`/admin/companies/${companyId}/people?tab=supervisors`)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'supervisors'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            }`}
+                    >
+                        <UserCheck className="w-4 h-4" />
+                        Supervisors
+                    </button>
+                    <button
+                        onClick={() => router.replace(`/admin/companies/${companyId}/people?tab=workers`)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'workers'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            }`}
+                    >
+                        <Users className="w-4 h-4" />
+                        Workers
+                    </button>
+                </div>
+                
                 <button
-                    onClick={() => router.replace(`/admin/companies/${companyId}/people?tab=supervisors`)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'supervisors'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
+                    onClick={() => setShowAddWorker(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-blue-500/20"
                 >
-                    <UserCheck className="w-4 h-4" />
-                    Supervisors
-                </button>
-                <button
-                    onClick={() => router.replace(`/admin/companies/${companyId}/people?tab=workers`)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'workers'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
-                >
-                    <Users className="w-4 h-4" />
-                    Workers
+                    <Plus className="w-4 h-4" />
+                    Add {activeTab === 'supervisors' ? 'Supervisor' : 'Worker'}
                 </button>
             </div>
 
@@ -338,6 +352,15 @@ export default function CompanyPeoplePage() {
                 onClose={() => setEditUser(null)}
                 onSuccess={fetchPeople}
                 user={editUser as any}
+            />
+
+            {/* Add Worker Dialog */}
+            <AddWorkerDialog
+                isOpen={showAddWorker}
+                onClose={() => setShowAddWorker(false)}
+                onSuccess={fetchPeople}
+                companyId={companyId}
+                defaultRole={activeTab === 'supervisors' ? 'SUPERVISOR' : 'WORKER'}
             />
         </div>
     );

@@ -3,32 +3,50 @@ import { hashPassword } from '../lib/auth';
 import { AuditService } from '../services/AuditService';
 import { Op } from 'sequelize';
 import sequelize from '../lib/sequelize';
+import { firebaseAdmin } from '../lib/firebaseAdmin';
 
 export class UserController {
 
   static async list(query: any, actor: any) {
-    const { role, company_id } = query;
+    let { role, company_id, type } = query;
     const whereClause: any = {};
 
     if (company_id) {
       whereClause.company_id = company_id;
     }
 
+    // Dynamic grouping based on type parameter
+    if (type === 'admins' && !role) {
+      role = 'SUPER_ADMIN,ADMIN';
+    }
+
     // Role Filtering & Security
     if (actor?.role !== 'SUPER_ADMIN') {
       if (role) {
-        if (role === 'SUPER_ADMIN') {
-          // Hide SUPER_ADMIN from non-super admins
-          return { success: true, data: [], code: 100 };
+        if (typeof role === 'string' && role.includes(',')) {
+          // If multiple roles requested, filter out SUPER_ADMIN
+          const safeRoles = role.split(',').filter((r: string) => r.trim() !== 'SUPER_ADMIN');
+          whereClause.role = { [Op.in]: safeRoles };
+        } else {
+          if (role === 'SUPER_ADMIN') {
+            // Hide SUPER_ADMIN from non-super admins
+            return { success: true, data: [], code: 100 };
+          }
+          whereClause.role = role;
         }
-        whereClause.role = role;
       } else {
         // Exclude SUPER_ADMIN from list
         whereClause.role = { [Op.ne]: 'SUPER_ADMIN' };
       }
     } else {
-      // Super Admin can filter by any role or see all
-      if (role) whereClause.role = role;
+      // Super Admin can filter by any role, multiple roles, or see all
+      if (role) {
+        if (typeof role === 'string' && role.includes(',')) {
+          whereClause.role = { [Op.in]: role.split(',').map((r: string) => r.trim()) };
+        } else {
+          whereClause.role = role;
+        }
+      }
     }
 
     const users = await (User as any).findAll({
@@ -48,26 +66,73 @@ export class UserController {
   }
 
   static async create(data: any, actorId: string, ip: string) {
-    // 1. Check if email exists
-    const existingUser = await (User as any).findOne({ where: { email: data.email } });
-    if (existingUser) {
-      return { success: false, message: 'Email already exists', code: 205 };
+    // 1. Check if email exists (only if provided)
+    if (data.email) {
+      const existingEmailUser = await (User as any).findOne({ where: { email: data.email } });
+      if (existingEmailUser) {
+        return { success: false, message: 'Email already exists', code: 205 };
+      }
     }
 
-    // 2. Hash Password
-    const hashedPassword = await hashPassword(data.password);
+    // Check if phone exists locally
+    const existingPhoneUser = await (User as any).findOne({ where: { phone: data.phone } });
+    if (existingPhoneUser) {
+      return { success: false, message: 'Phone number already registered locally', code: 205 };
+    }
 
-    // 3. Create User
-    const newUser = await (User as any).create({
-      first_name: data.first_name,
-      last_name: data.last_name,
-      email: data.email,
-      password_hash: hashedPassword,
-      role: data.role,
-      company_id: data.company_id || null,
-      phone_number: data.phone_number,
-      years_experience: data.years_experience || 0
-    });
+    let firebaseUid = null;
+    const fullPhone = `${data.country_code}${data.phone}`;
+
+    // 2. Either Verify OTP (idToken) OR Auto-Create in Firebase
+    if (data.idToken) {
+      try {
+        const decodedToken = await firebaseAdmin.auth().verifyIdToken(data.idToken);
+        firebaseUid = decodedToken.uid;
+        
+        // Optional: Ensure the decoded phone number matches what we expect
+        if (decodedToken.phone_number !== fullPhone) {
+           return { success: false, message: 'OTP phone number does not match submitted phone number', code: 400 };
+        }
+      } catch (err: any) {
+        return { success: false, message: 'Invalid or expired OTP token', code: 401 };
+      }
+    } else {
+      try {
+        const userRecord = await firebaseAdmin.auth().createUser({
+          phoneNumber: fullPhone,
+          displayName: `${data.first_name} ${data.last_name}`,
+        });
+        firebaseUid = userRecord.uid;
+      } catch (err: any) {
+        if (err.code === 'auth/phone-number-already-exists') {
+          return { success: false, message: 'This phone number is already registered in Firebase. Registration rejected.', code: 205 };
+        }
+        return { success: false, message: `Firebase Error: ${err.message}`, code: 300 };
+      }
+    }
+
+    // 3. Create User in PostgreSQL
+    let newUser;
+    try {
+      newUser = await (User as any).create({
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email || null,
+        role: data.role,
+        company_id: data.company_id || null,
+        phone: data.phone,
+        country_code: data.country_code,
+        firebase_uid: firebaseUid,
+        status: 'ACTIVE', // Ensure active status if manually created by admins
+        years_experience: data.years_experience || 0
+      });
+    } catch (dbError: any) {
+      // Rollback Firebase user if DB fails (only if we created it dynamically)
+      if (firebaseUid && !data.idToken) {
+        await firebaseAdmin.auth().deleteUser(firebaseUid).catch(console.error);
+      }
+      return { success: false, message: 'Database Error: ' + dbError.message, code: 301 };
+    }
 
     // 4. Log Action
     await AuditService.log({
@@ -77,15 +142,14 @@ export class UserController {
       entityId: newUser.id,
       details: {
         role: newUser.role,
-        email: newUser.email,
+        phone: newUser.phone,
         company_id: newUser.company_id
       },
       ipAddress: ip
     });
 
-    // Remove hash from return
     const userResponse = newUser.toJSON();
-    delete (userResponse as any).password_hash;
+    
 
     return { success: true, message: 'User created successfully', data: userResponse, code: 101 };
   }

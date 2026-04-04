@@ -12,7 +12,7 @@ interface CompanySiteAttributes {
     name: string;
     address?: string | null;
     /** Current project stage at this site */
-    project_stage?: 'FOUNDATION' | 'STRUCTURE' | 'MASONRY' | 'FINISHING' | 'MEP' | null;
+    project_stage_id?: number | null;
     /** Expected duration of the project in months */
     expected_duration_months?: number | null;
     /** FK to users — the contractor/company representative for this site */
@@ -27,7 +27,7 @@ interface CompanySiteAttributes {
 }
 
 interface CompanySiteCreationAttributes
-    extends Optional<CompanySiteAttributes, 'id' | 'status' | 'address' | 'project_stage' | 'expected_duration_months' | 'contractor_rep_id' | 'site_supervisor_id' | 'delete_reason'> { }
+    extends Optional<CompanySiteAttributes, 'id' | 'status' | 'address' | 'project_stage_id' | 'expected_duration_months' | 'contractor_rep_id' | 'site_supervisor_id' | 'delete_reason'> { }
 
 class CompanySite
     extends Model<CompanySiteAttributes, CompanySiteCreationAttributes>
@@ -36,7 +36,7 @@ class CompanySite
     declare public company_id: string;
     declare public name: string;
     declare public address: string | null;
-    declare public project_stage: 'FOUNDATION' | 'STRUCTURE' | 'MASONRY' | 'FINISHING' | 'MEP' | null;
+    declare public project_stage_id: number | null;
     declare public expected_duration_months: number | null;
     declare public contractor_rep_id: string | null;
     declare public site_supervisor_id: string | null;
@@ -67,11 +67,11 @@ class CompanySite
             type: DataTypes.TEXT,
             allowNull: true,
         },
-        project_stage: {
-            type: DataTypes.ENUM('FOUNDATION', 'STRUCTURE', 'MASONRY', 'FINISHING', 'MEP'),
+        project_stage_id: {
+            type: DataTypes.INTEGER,
             allowNull: true,
             defaultValue: null,
-            comment: 'Current project stage at this site',
+            comment: 'FK to ref_industry_project_stages',
         },
         expected_duration_months: {
             type: DataTypes.INTEGER,

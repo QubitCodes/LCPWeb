@@ -1,4 +1,4 @@
-import { Industry, Category, Skill } from '../models';
+import { Industry, Category, Skill, IndustryProjectStage } from '../models';
 import { AuditService } from '../services/AuditService';
 
 /**
@@ -7,6 +7,7 @@ import { AuditService } from '../services/AuditService';
 const modelMap: { [key: string]: any } = {
   industries: Industry,
   categories: Category,
+  project_stages: IndustryProjectStage,
   skills: Skill,
 };
 
@@ -21,14 +22,21 @@ export class ReferenceController {
     }
 
     const where: any = {};
-    if (type === 'categories' && filters.industry_id) {
+    if (['categories', 'project_stages'].includes(type) && filters.industry_id) {
         where.industry_id = filters.industry_id;
+    }
+
+    let include: any;
+    if (type === 'industries') {
+      include = ['categories', 'project_stages'];
+    } else if (['categories', 'project_stages'].includes(type)) {
+      include = ['industry'];
     }
 
     const items = await Model.findAll({
       where,
       order: [['name', 'ASC']],
-      include: type === 'categories' ? ['industry'] : undefined,
+      include,
     });
 
     return { success: true, data: items, code: 100 };
@@ -43,15 +51,15 @@ export class ReferenceController {
       return { success: false, message: 'Invalid reference type', code: 201 };
     }
 
-    if (type === 'categories' && !data.industry_id) {
-      return { success: false, message: 'Industry is required for categories', code: 202 };
+    if (['categories', 'project_stages'].includes(type) && !data.industry_id) {
+      return { success: false, message: `Industry is required for ${type}`, code: 202 };
     }
 
     const payload: any = {
       name: data.name,
       is_active: data.is_active !== undefined ? data.is_active : true,
     };
-    if (type === 'categories' && data.industry_id !== undefined) {
+    if (['categories', 'project_stages'].includes(type) && data.industry_id !== undefined) {
       payload.industry_id = data.industry_id || null;
     }
 
@@ -83,8 +91,8 @@ export class ReferenceController {
       return { success: false, message: 'Item not found', code: 310 };
     }
 
-    if (type === 'categories' && !data.industry_id) {
-      return { success: false, message: 'Industry is required for categories', code: 202 };
+    if (['categories', 'project_stages'].includes(type) && !data.industry_id) {
+      return { success: false, message: `Industry is required for ${type}`, code: 202 };
     }
 
     const oldData = { ...item.toJSON() };
@@ -92,7 +100,7 @@ export class ReferenceController {
       name: data.name !== undefined ? data.name : item.name,
       is_active: data.is_active !== undefined ? data.is_active : item.is_active,
     };
-    if (type === 'categories' && data.industry_id !== undefined) {
+    if (['categories', 'project_stages'].includes(type) && data.industry_id !== undefined) {
       payload.industry_id = data.industry_id || null;
     }
 

@@ -10,11 +10,12 @@ export const dynamic = 'force-dynamic';
 const createUserSchema = z.object({
   first_name: z.string().min(2),
   last_name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email().optional().or(z.literal('')),
+  idToken: z.string().optional(),
   role: z.nativeEnum(UserRole),
   company_id: z.string().uuid().optional().or(z.literal('')), // Optional for Admin, required for others logic handled in controller/frontend
-  phone_number: z.string().optional(),
+  phone: z.string().min(5),
+  country_code: z.string().min(1),
   years_experience: z.number().optional().or(z.string().transform(v => parseInt(v, 10))),
 });
 
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const role = url.searchParams.get('role');
     const company_id = url.searchParams.get('company_id');
+    const type = url.searchParams.get('type');
 
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.split(' ')[1];
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     // Allow list but filter inside controller based on role
     // Default to empty actor if no token (though middleware likely blocks generic access, this is defensive)
-    const result = await UserController.list({ role, company_id }, user);
+    const result = await UserController.list({ role, company_id, type }, user);
 
     return sendResponse(200, {
       status: true,

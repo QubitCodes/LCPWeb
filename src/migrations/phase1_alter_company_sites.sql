@@ -5,8 +5,8 @@
 
 -- Add columns for project stage, duration, and FK references
 ALTER TABLE company_sites
-  ADD COLUMN project_stage ENUM('FOUNDATION', 'STRUCTURE', 'MASONRY', 'FINISHING', 'MEP') NULL DEFAULT NULL
-    COMMENT 'Current project stage at this site',
+  ADD COLUMN project_stage_id INT NULL DEFAULT NULL
+    COMMENT 'FK to ref_industry_project_stages',
   ADD COLUMN expected_duration_months INT NULL DEFAULT NULL
     COMMENT 'Expected project duration in months',
   ADD COLUMN contractor_rep_id CHAR(36) NULL DEFAULT NULL

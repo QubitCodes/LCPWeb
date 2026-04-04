@@ -28,14 +28,6 @@ const STEPS = [
     { label: 'Review', icon: ClipboardCheck }
 ];
 
-/** Project stage options for site form */
-const PROJECT_STAGES = [
-    { value: 'FOUNDATION', label: 'Foundation' },
-    { value: 'STRUCTURE', label: 'Structure' },
-    { value: 'MASONRY', label: 'Masonry' },
-    { value: 'FINISHING', label: 'Finishing' },
-    { value: 'MEP', label: 'MEP (Mechanical/Electrical/Plumbing)' }
-];
 
 /** Country data for the dropdown */
 interface CountryData {
@@ -51,11 +43,10 @@ interface IndustryOption {
     name: string;
 }
 
-/** Site entry for multi-site form */
 interface SiteEntry {
     site_name: string;
     site_address: string;
-    project_stage: string;
+    project_stage_id: string;
     expected_duration_months: string;
 }
 
@@ -192,8 +183,9 @@ function RegisterPageContent() {
 
     // Sites (Step 2) — supports adding multiple
     const [sites, setSites] = useState<SiteEntry[]>([
-        { site_name: '', site_address: '', project_stage: '', expected_duration_months: '' }
+        { site_name: '', site_address: '', project_stage_id: '', expected_duration_months: '' }
     ]);
+    const [projectStages, setProjectStages] = useState<{ id: number; name: string }[]>([]);
 
     /** Fetch industries for dropdown */
     useEffect(() => {
@@ -208,6 +200,24 @@ function RegisterPageContent() {
         };
         fetchIndustries();
     }, []);
+
+    /** Fetch project stages when industry_id changes */
+    useEffect(() => {
+        if (formData.industry_id) {
+            const fetchStages = async () => {
+                try {
+                    const res = await fetch(`/api/v1/reference/project_stages?industry_id=${formData.industry_id}`);
+                    const data = await res.json();
+                    if (data.status) setProjectStages(data.data);
+                } catch (err) {
+                    console.error('Failed to fetch project stages');
+                }
+            };
+            fetchStages();
+        } else {
+            setProjectStages([]);
+        }
+    }, [formData.industry_id]);
 
 
     /** Generic form change handler */
@@ -224,7 +234,7 @@ function RegisterPageContent() {
 
     /** Add a new empty site entry */
     const addSite = () => {
-        setSites([...sites, { site_name: '', site_address: '', project_stage: '', expected_duration_months: '' }]);
+        setSites([...sites, { site_name: '', site_address: '', project_stage_id: '', expected_duration_months: '' }]);
     };
 
     /** Remove a site entry by index (min 1 site required) */
@@ -463,7 +473,7 @@ function RegisterPageContent() {
                     body: JSON.stringify({
                         site_name: site.site_name,
                         site_address: site.site_address || undefined,
-                        project_stage: site.project_stage || undefined,
+                        project_stage_id: site.project_stage_id ? Number(site.project_stage_id) : undefined,
                         expected_duration_months: site.expected_duration_months ? parseInt(site.expected_duration_months, 10) : undefined,
                     }),
                 });
@@ -972,12 +982,12 @@ function RegisterPageContent() {
                                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                                                 <HardHat className="h-4 w-4 text-slate-400" />
                                                             </div>
-                                                            <select value={site.project_stage}
-                                                                onChange={(e) => handleSiteChange(idx, 'project_stage', e.target.value)}
+                                                            <select value={site.project_stage_id}
+                                                                onChange={(e) => handleSiteChange(idx, 'project_stage_id', e.target.value)}
                                                                 className={SELECT_CLASS}>
                                                                 <option value="">Select stage</option>
-                                                                {PROJECT_STAGES.map(ps => (
-                                                                    <option key={ps.value} value={ps.value}>{ps.label}</option>
+                                                                {projectStages.map(ps => (
+                                                                    <option key={ps.id} value={ps.id}>{ps.name}</option>
                                                                 ))}
                                                             </select>
                                                         </div>
@@ -1088,10 +1098,10 @@ function RegisterPageContent() {
                                                                 <span className="text-slate-700 dark:text-slate-300 text-right max-w-[200px] truncate">{site.site_address}</span>
                                                             </div>
                                                         )}
-                                                        {site.project_stage && (
+                                                        {site.project_stage_id && (
                                                             <div className="flex justify-between text-sm">
                                                                 <span className="text-slate-500 dark:text-slate-400">Stage</span>
-                                                                <span className="text-slate-700 dark:text-slate-300">{PROJECT_STAGES.find(ps => ps.value === site.project_stage)?.label || site.project_stage}</span>
+                                                                <span className="text-slate-700 dark:text-slate-300">{projectStages.find(ps => String(ps.id) === site.project_stage_id)?.name || 'Unknown'}</span>
                                                             </div>
                                                         )}
                                                         {site.expected_duration_months && (

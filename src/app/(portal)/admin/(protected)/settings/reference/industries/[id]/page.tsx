@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHeader } from '@/components/HeaderContext';
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Loader2, FileText, Settings2 } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Loader2, FileText, Settings2, Layers, AlertTriangle } from 'lucide-react';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
@@ -17,13 +17,14 @@ export default function IndustryDetailsPage({ params }: { params: Promise<{ id: 
     const toast = useToast();
 
     const [industryName, setIndustryName] = useState<string>('Loading...');
-    const [activeTab, setActiveTab] = useState<'categories' | 'onboarding'>('categories');
+    const [activeTab, setActiveTab] = useState<'categories' | 'project_stages' | 'onboarding'>('categories');
     const [loading, setLoading] = useState(true);
 
     // ==========================================
     // DATA STATES
     // ==========================================
     const [categories, setCategories] = useState<any[]>([]);
+    const [projectStages, setProjectStages] = useState<any[]>([]);
     const [forms, setForms] = useState<any[]>([]);
 
     // ==========================================
@@ -59,6 +60,13 @@ export default function IndustryDetailsPage({ params }: { params: Promise<{ id: 
             const catJson = await catRes.json();
             if (catJson.status) {
                 setCategories(catJson.data);
+            }
+
+            // 2.5 Fetch Project Stages
+            const stageRes = await fetch(`/api/v1/reference/project_stages?industry_id=${industryId}`, { headers });
+            const stageJson = await stageRes.json();
+            if (stageJson.status) {
+                setProjectStages(stageJson.data);
             }
 
             // 3. Fetch Onboarding Forms for this industry
@@ -153,6 +161,78 @@ export default function IndustryDetailsPage({ params }: { params: Promise<{ id: 
     };
 
     // ==========================================
+    // PROJECT STAGES LOGIC
+    // ==========================================
+    const [stageCreating, setStageCreating] = useState(false);
+    const [stageNewName, setStageNewName] = useState('');
+    const [stageEditId, setStageEditId] = useState<string | null>(null);
+    const [stageEditName, setStageEditName] = useState('');
+
+    const handleCreateStage = async () => {
+        if (!stageNewName.trim()) return;
+        setActionLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/v1/reference/project_stages`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: stageNewName.trim(), industry_id: Number(industryId) })
+            });
+            const json = await res.json();
+            if (json.status) {
+                setStageNewName('');
+                setStageCreating(false);
+                fetchData();
+                toast.success('Project Stage created successfully.');
+            } else {
+                error('Create Failed', json.message || 'Could not create project stage.');
+            }
+        } finally { setActionLoading(false); }
+    };
+
+    const handleUpdateStage = async (id: string) => {
+        if (!stageEditName.trim()) return;
+        setActionLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/v1/reference/project_stages?id=${id}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: stageEditName.trim(), industry_id: Number(industryId) })
+            });
+            const json = await res.json();
+            if (json.status) {
+                setStageEditId(null);
+                setStageEditName('');
+                fetchData();
+                toast.success('Project Stage updated successfully.');
+            } else {
+                error('Update Failed', json.message || 'Could not update project stage.');
+            }
+        } finally { setActionLoading(false); }
+    };
+
+    const handleDeleteStage = async (id: string, name: string) => {
+        const confirmed = await confirm('Delete Project Stage', `Are you sure you want to delete "${name}"?`);
+        if (!confirmed) return;
+        setActionLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/v1/reference/project_stages?id=${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const json = await res.json();
+            if (json.status) {
+                fetchData();
+                toast.success(`"${name}" has been deleted.`);
+            } else {
+                error('Delete Failed', json.message || 'Could not delete project stage.');
+            }
+        } finally { setActionLoading(false); }
+    };
+
+    // ==========================================
     // ONBOARDING FORMS LOGIC
     // ==========================================
     const handleCreateForm = async () => {
@@ -218,8 +298,15 @@ export default function IndustryDetailsPage({ params }: { params: Promise<{ id: 
                 <Link href="/admin/settings/reference/industries" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors mb-4">
                     <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to Industries
                 </Link>
-                <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{industryName}</h1>
-                <p className="text-sm text-slate-500 mt-1 mb-6">Manage specific categories and tailored onboarding forms for this industry.</p>
+                <div className="flex items-center gap-2 mb-1">
+                    <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{industryName}</h1>
+                    {(!loading && categories.length === 0 && projectStages.length === 0) && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                            <AlertTriangle className="w-3.5 h-3.5" /> Hidden from Public (Incomplete)
+                        </span>
+                    )}
+                </div>
+                <p className="text-sm text-slate-500 mb-6">Manage specific categories, project stages and tailored onboarding forms for this industry. <br/> <strong className="text-amber-600 dark:text-amber-500 font-medium">Note:</strong> If a new industry lacks either categories or project stages, it will be hidden from public dropdowns.</p>
             </div>
 
             {/* Tabs */}
@@ -229,6 +316,12 @@ export default function IndustryDetailsPage({ params }: { params: Promise<{ id: 
                     className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-colors ${activeTab === 'categories' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                 >
                     <Settings2 className="w-4 h-4 mr-2" /> Categories ({categories.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('project_stages')}
+                    className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-colors ${activeTab === 'project_stages' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                >
+                    <Layers className="w-4 h-4 mr-2" /> Project Stages ({projectStages.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('onboarding')}
@@ -321,6 +414,103 @@ export default function IndustryDetailsPage({ params }: { params: Promise<{ id: 
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
+
+            {/* TAB CONTENT: PROJECT STAGES */}
+            {activeTab === 'project_stages' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                        <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Project Stages</h2>
+                        <button
+                            onClick={() => { setStageCreating(true); setStageNewName(''); }}
+                            disabled={stageCreating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 outline-none hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                        >
+                            <Plus className="w-3.5 h-3.5" /> Add Project Stage
+                        </button>
+                    </div>
+
+                    {stageCreating && (
+                        <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-500/5 border-b border-slate-100 dark:border-slate-800">
+                            <input
+                                type="text"
+                                value={stageNewName}
+                                onChange={(e) => setStageNewName(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreateStage()}
+                                placeholder="Enter project stage name..."
+                                autoFocus
+                                className="flex-1 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                                onClick={handleCreateStage}
+                                disabled={actionLoading || !stageNewName.trim()}
+                                className="p-1.5 text-green-600 outline-none hover:bg-green-100 dark:hover:bg-green-500/20 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                <Save className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => { setStageCreating(false); setStageNewName(''); }}
+                                className="p-1.5 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+
+                    {projectStages.length === 0 ? (
+                        <div className="py-12 text-center text-sm text-slate-500 font-medium">No Project Stages found for this industry.</div>
+                    ) : (
+                        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {projectStages.map((stage) => (
+                                <li key={stage.id} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    {stageEditId === stage.id ? (
+                                        <div className="flex-1 flex items-center gap-3">
+                                            <input
+                                                type="text"
+                                                value={stageEditName}
+                                                onChange={(e) => setStageEditName(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleUpdateStage(stage.id)}
+                                                autoFocus
+                                                className="flex-1 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                            <button
+                                                onClick={() => handleUpdateStage(stage.id)}
+                                                disabled={actionLoading || !stageEditName.trim()}
+                                                className="p-1.5 text-green-600 outline-none hover:bg-green-100 dark:hover:bg-green-500/20 rounded-lg transition-colors disabled:opacity-50"
+                                            >
+                                                <Save className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => { setStageEditId(null); setStageEditName(''); }}
+                                                className="p-1.5 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <span className="text-sm font-medium text-slate-800 dark:text-white">{stage.name}</span>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => { setStageEditId(stage.id); setStageEditName(stage.name); }}
+                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteStage(stage.id, stage.name)}
                                                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />

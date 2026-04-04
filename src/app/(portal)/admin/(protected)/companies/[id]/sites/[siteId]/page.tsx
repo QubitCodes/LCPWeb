@@ -28,10 +28,10 @@ interface SiteDetail {
 	id: string;
 	name: string;
 	address: string | null;
-	project_stage: string | null;
+	project_stage: { id: number; name: string } | null;
 	expected_duration_months: number | null;
 	status: 'ACTIVE' | 'INACTIVE';
-	company?: { id: string; name: string };
+	company?: { id: string; name: string; industry_id?: number | null };
 	contractor_rep?: { id: string; first_name: string; last_name: string } | null;
 	site_supervisor?: { id: string; first_name: string; last_name: string } | null;
 	survey_responses: SurveyResponseRow[];
@@ -65,14 +65,6 @@ const RESPONSE_STATUS_ICONS: Record<string, typeof Clock> = {
 	COMPLETED: CheckCircle2,
 };
 
-/** Project stage labels */
-const STAGE_LABELS: Record<string, string> = {
-	FOUNDATION: 'Foundation',
-	STRUCTURE: 'Structure',
-	MASONRY: 'Masonry',
-	FINISHING: 'Finishing',
-	MEP: 'MEP',
-};
 
 /**
  * Site Detail page — shows site info and all survey responses.
@@ -97,15 +89,16 @@ export default function SiteDetailPage() {
 	const [showEditModal, setShowEditModal] = useState(false);
 	const [editSiteName, setEditSiteName] = useState('');
 	const [editSiteAddress, setEditSiteAddress] = useState('');
-	const [editProjectStage, setEditProjectStage] = useState('');
+	const [editProjectStageId, setEditProjectStageId] = useState('');
 	const [editDuration, setEditDuration] = useState('');
 	const [updating, setUpdating] = useState(false);
+	const [projectStages, setProjectStages] = useState<{ id: number; name: string }[]>([]);
 
 	const openEditModal = () => {
 		if (site) {
 			setEditSiteName(site.name || '');
 			setEditSiteAddress(site.address || '');
-			setEditProjectStage(site.project_stage || '');
+			setEditProjectStageId(site.project_stage?.id ? String(site.project_stage.id) : '');
 			setEditDuration(site.expected_duration_months?.toString() || '');
 			setShowEditModal(true);
 		}
@@ -178,6 +171,19 @@ export default function SiteDetailPage() {
 		if (companyId && siteId) fetchSite();
 	}, [companyId, siteId, fetchSite]);
 
+	/** Fetch project stages if industry_id is available */
+	useEffect(() => {
+		if (site?.company?.industry_id) {
+			const fetchStages = async () => {
+				const res = await apiFetch(`/api/v1/reference/project_stages?industry_id=${site.company!.industry_id}`);
+				if (res.status) {
+					setProjectStages(res.data || []);
+				}
+			};
+			fetchStages();
+		}
+	}, [site?.company?.industry_id, apiFetch]);
+
 	/** Set header */
 	useEffect(() => {
 		setTitle(site ? `${site.name}` : 'Site Details');
@@ -235,7 +241,7 @@ export default function SiteDetailPage() {
 				body: JSON.stringify({
 					name: editSiteName.trim(),
 					address: editSiteAddress.trim() || null,
-					project_stage: editProjectStage || null,
+					project_stage_id: editProjectStageId ? Number(editProjectStageId) : null,
 					expected_duration_months: editDuration ? parseInt(editDuration) : null,
 				}),
 			});
@@ -464,7 +470,7 @@ export default function SiteDetailPage() {
 							<InfoItem icon={MapPin} label="Address" value={site.address} />
 						)}
 						{site.project_stage && (
-							<InfoItem icon={HardHat} label="Stage" value={STAGE_LABELS[site.project_stage] || site.project_stage} />
+							<InfoItem icon={HardHat} label="Stage" value={site.project_stage.name} />
 						)}
 						{site.expected_duration_months && (
 							<InfoItem icon={Calendar} label="Duration" value={`${site.expected_duration_months} months`} />
@@ -567,16 +573,14 @@ export default function SiteDetailPage() {
 									Stage
 								</label>
 								<select
-									value={editProjectStage}
-									onChange={(e) => setEditProjectStage(e.target.value)}
+									value={editProjectStageId}
+									onChange={(e) => setEditProjectStageId(e.target.value)}
 									className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
 								>
 									<option value="">Unknown</option>
-									<option value="FOUNDATION">Foundation</option>
-									<option value="STRUCTURE">Structure</option>
-									<option value="MASONRY">Masonry</option>
-									<option value="FINISHING">Finishing</option>
-									<option value="MEP">MEP</option>
+									{projectStages.map(stage => (
+										<option key={stage.id} value={stage.id}>{stage.name}</option>
+									))}
 								</select>
 							</div>
 

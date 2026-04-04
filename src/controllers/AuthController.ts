@@ -211,7 +211,7 @@ export class AuthController {
         company_id: user.company_id,
         name: data.site_name.trim(),
         address: data.site_address || null,
-        project_stage: data.project_stage || null,
+        project_stage_id: data.project_stage_id ? Number(data.project_stage_id) : null,
         expected_duration_months: data.expected_duration_months || null,
         contractor_rep_id: data.contractor_rep_id || null,
         site_supervisor_id: data.site_supervisor_id || null,
